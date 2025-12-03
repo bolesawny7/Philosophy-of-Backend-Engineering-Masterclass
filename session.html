@@ -1,0 +1,2618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend Engineering From Internals to Distributed Systems</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        /* Custom Chart Container Styling */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        
+        /* Interactive element transitions */
+        .interactive-card {
+            transition: all 0.3s ease;
+        }
+        .interactive-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Animations */
+        @keyframes flow {
+            0% { stroke-dashoffset: 24; }
+            100% { stroke-dashoffset: 0; }
+        }
+        
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+
+        .animate-pulse-ring {
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Token Bucket & Nagle Animations */
+        .token-drop {
+            transition: top 0.5s cubic-bezier(0.5, 0, 1, 1), opacity 0.2s;
+        }
+        
+        /* Truck Animation Classes */
+        .truck-departing {
+            transition: left 0.6s cubic-bezier(0.5, 0, 0.75, 0);
+            left: 120% !important;
+        }
+        .truck-reset {
+            transition: none !important;
+            left: -150px !important;
+        }
+        .truck-arriving {
+            transition: left 0.4s ease-out;
+            left: 40px !important;
+        }
+        
+        /* Diagram Lines */
+        .diagram-line {
+            position: absolute;
+            background-color: #94a3b8; /* Slate-400 */
+            z-index: 0;
+        }
+        
+        /* System Component Box */
+        .sys-box {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 10;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #475569;
+        }
+        .sys-box-header {
+            width: 100%;
+            text-align: center;
+            background: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+            padding: 4px 0;
+            border-radius: 0.3rem 0.3rem 0 0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 0.6rem;
+            color: #64748b;
+        }
+        .sys-box-content {
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        /* Context Switcher Styles */
+        .thread-block {
+            width: 80px;
+            height: 40px;
+            border-radius: 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            position: absolute;
+            z-index: 20;
+        }
+        
+        /* Arch Diagram specific */
+        .arch-label {
+            background-color: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+            font-size: 10px;
+            color: #64748b;
+            font-weight: bold;
+            position: absolute;
+            z-index: 5;
+        }
+
+         /* Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1c1917;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #44403c;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800 font-sans h-screen overflow-hidden flex flex-col md:flex-row">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-full md:w-72 bg-stone-900 text-stone-300 flex-shrink-0 flex flex-col h-full overflow-y-auto z-20 shadow-xl">
+        <div class="p-6 border-b border-stone-800 bg-stone-950">
+            <h1 class="text-xl font-bold text-amber-500 tracking-tight">The Philosophy of Backend Engineering</h1>
+            <p class="text-xs text-stone-500 mt-1 uppercase tracking-widest">acmASCIS Session</p>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <button onclick="navTo(0)" id="btn-0" class="nav-btn w-full text-left px-4 py-4 rounded-lg hover:bg-stone-800 transition-all border-l-4 border-transparent active-nav group">
+                <span class="text-[10px] font-bold uppercase tracking-wider block text-stone-500 group-hover:text-amber-500 mb-1">Part 1</span>
+                <span class="font-medium text-stone-300 group-hover:text-white">The Philosophy</span>
+            </button>
+            
+            <button onclick="navTo(1)" id="btn-1" class="nav-btn w-full text-left px-4 py-4 rounded-lg hover:bg-stone-800 transition-all border-l-4 border-transparent group">
+                <span class="text-[10px] font-bold uppercase tracking-wider block text-stone-500 group-hover:text-amber-500 mb-1">Part 2</span>
+                <span class="font-medium text-stone-300 group-hover:text-white">Communication</span>
+            </button>
+
+            <button onclick="navTo(2)" id="btn-2" class="nav-btn w-full text-left px-4 py-4 rounded-lg hover:bg-stone-800 transition-all border-l-4 border-transparent group">
+                <span class="text-[10px] font-bold uppercase tracking-wider block text-stone-500 group-hover:text-amber-500 mb-1">Part 3</span>
+                <span class="font-medium text-stone-300 group-hover:text-white">Inside the Box</span>
+            </button>
+
+            <button onclick="navTo(3)" id="btn-3" class="nav-btn w-full text-left px-4 py-4 rounded-lg hover:bg-stone-800 transition-all border-l-4 border-transparent group">
+                <span class="text-[10px] font-bold uppercase tracking-wider block text-stone-500 group-hover:text-amber-500 mb-1">Part 4</span>
+                <span class="font-medium text-stone-300 group-hover:text-white">Infrastructure</span>
+            </button>
+
+            <button onclick="navTo(4)" id="btn-4" class="nav-btn w-full text-left px-4 py-4 rounded-lg hover:bg-stone-800 transition-all border-l-4 border-transparent group">
+                <span class="text-[10px] font-bold uppercase tracking-wider block text-stone-500 group-hover:text-amber-500 mb-1">Part 5</span>
+                <span class="font-medium text-stone-300 group-hover:text-white">API Resilience</span>
+            </button>
+
+            <button onclick="navTo(5)" id="btn-5" class="nav-btn w-full text-left px-4 py-4 rounded-lg hover:bg-stone-800 transition-all border-l-4 border-transparent group">
+                <span class="text-[10px] font-bold uppercase tracking-wider block text-stone-500 group-hover:text-amber-500 mb-1">Part 6</span>
+                <span class="font-medium text-stone-300 group-hover:text-white">Workshop: WhatsApp</span>
+            </button>
+
+            <button onclick="navTo(6)" id="btn-6" class="nav-btn w-full text-left px-4 py-4 rounded-lg hover:bg-stone-800 transition-all border-l-4 border-transparent group">
+                <span class="text-[10px] font-bold uppercase tracking-wider block text-stone-500 group-hover:text-amber-500 mb-1">Part 7</span>
+                <span class="font-medium text-stone-300 group-hover:text-white">Workshop: Uber</span>
+            </button>
+        </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto bg-stone-50 relative scroll-smooth">
+        <div id="content-container" class="p-6 md:p-12 max-w-6xl mx-auto pb-32 min-h-full">
+            <!-- Content injected via JS -->
+        </div>
+    </main>
+
+    <script>
+        // State
+        const state = {
+            currentSection: 0,
+            tokenBucket: 10,
+            nagleOn: true,
+            truckLoad: 0,
+            simulatingWA: false,
+            simulatingMedia: false,
+            simulatingOffline: false,
+            currentThread: 'A',
+            isSwitching: false,
+            lbIndex: 0,
+            lbMode: 'rr',
+            cacheHit: false,
+            currentIdempotencyKey: 'req_a1b2',
+            paymentProcessed: false,
+            jobQueue: [],
+            workerBusy: false,
+            jobCounter: 0,
+            // Part 5 States
+            pollInterval: null,
+            isPolling: false,
+            sseSource: null,
+            http1Queue: [],
+            http1Busy: false,
+            http2Queue: [],
+            statefulSession: { server: 1, data: "Session_123" }
+        };
+
+        // Course Data
+        const courseData = [
+            {
+                title: "The Philosophy (First Principles)",
+                subtitle: "Contracts vs. Requests",
+                intro: "Before writing code, an engineer must define guarantees. We shift from the 'HTTP Mindset' (Status Codes) to the 'Contract Mindset' (Data Integrity).",
+                content: `
+                    <div class="grid md:grid-cols-2 gap-8 mb-12">
+                        <div class="bg-white p-8 rounded-xl shadow-sm border border-red-100 relative overflow-hidden group hover:border-red-300 transition-colors">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
+                            <h3 class="text-xl font-bold text-stone-800 mb-2 flex items-center gap-2">
+                                <span class="text-red-500">✕</span> The HTTP Trap
+                            </h3>
+                            <p class="text-stone-600 mb-6 text-sm">"If the server returns 200 OK, it works."</p>
+                            
+                            <div class="bg-stone-50 p-4 rounded border border-stone-200 font-mono text-xs text-stone-500 mb-4">
+                                <span class="text-green-600">HTTP/1.1 200 OK</span><br>
+                                Content-Type: application/json<br>
+                                <br>
+                                { "salad": true } <span class="text-red-500">// Wait, I ordered Pizza!</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-8 rounded-xl shadow-sm border border-green-100 relative overflow-hidden group hover:border-green-300 transition-colors">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
+                            <h3 class="text-xl font-bold text-stone-800 mb-2 flex items-center gap-2">
+                                <span class="text-green-500">✓</span> The Contract Mindset
+                            </h3>
+                            <p class="text-stone-600 mb-6 text-sm">"I guarantee the data shape, regardless of transport."</p>
+                            
+                            <div class="bg-stone-50 p-4 rounded border border-stone-200 font-mono text-xs text-stone-500 mb-4">
+                                <span class="text-purple-600">interface</span> Pizza {<br>
+                                &nbsp;&nbsp;toppings: string[];<br>
+                                &nbsp;&nbsp;radius: number;<br>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            // INDEX 1: COMMUNICATION PATTERNS
+            {
+                title: "Communication Patterns",
+                subtitle: "Picking the Right Tool",
+                intro: "Not all messages are equal. We choose between Blocking (Sync), Non-blocking (Async), and Real-time (Push) based on urgency.",
+                content: `
+                    <!-- 1. The Evolution of Real-Time -->
+                    <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm mb-8">
+                        <h3 class="font-bold text-stone-800 text-lg mb-4">1. The Evolution of Real-Time</h3>
+                        <div class="flex gap-2 mb-4 bg-stone-50 p-1 rounded-lg inline-flex">
+                            <button onclick="setPollingMode('short')" id="btn-short" class="px-3 py-1 text-xs font-bold rounded bg-white shadow text-stone-800 transition-all">Short Polling</button>
+                            <button onclick="setPollingMode('long')" id="btn-long" class="px-3 py-1 text-xs font-bold rounded text-stone-500 hover:bg-stone-200 transition-all">Long Polling</button>
+                            <button onclick="setPollingMode('sse')" id="btn-sse" class="px-3 py-1 text-xs font-bold rounded text-stone-500 hover:bg-stone-200 transition-all">SSE</button>
+                            <button onclick="setPollingMode('ws')" id="btn-ws" class="px-3 py-1 text-xs font-bold rounded text-stone-500 hover:bg-stone-200 transition-all">WebSockets</button>
+                        </div>
+
+                        <div class="relative h-48 bg-stone-100 rounded-lg border border-stone-200 overflow-hidden flex flex-col" id="poll-viz">
+                            <!-- Client/Server Labels -->
+                            <div class="flex justify-between px-8 py-2 border-b border-stone-200 bg-white z-20">
+                                <div class="flex flex-col items-center">
+                                    <div class="text-2xl">💻</div>
+                                    <span class="text-[10px] font-bold text-stone-400 uppercase">Client</span>
+                                </div>
+                                <div class="flex flex-col items-center">
+                                    <div class="text-2xl">🖥️</div>
+                                    <span class="text-[10px] font-bold text-stone-400 uppercase">Server</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Animation Area -->
+                            <div class="flex-1 relative" id="poll-anim-area">
+                                <!-- Packets injected here -->
+                            </div>
+                            
+                            <!-- Description Footer -->
+                            <div id="poll-desc" class="p-2 bg-stone-800 text-stone-300 text-[10px] font-mono text-center z-20">
+                                Select a mode to start simulation.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 2. Queues -->
+                    <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm mb-8">
+                        <h3 class="font-bold text-stone-800 mb-4">2. Asynchronous Queues (RabbitMQ/Kafka)</h3>
+                        <div class="flex flex-col md:flex-row gap-8">
+                            <!-- Producer -->
+                            <div class="w-1/4 flex flex-col items-center">
+                                <div class="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center text-2xl mb-2">💻</div>
+                                <button onclick="enqueueJob()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-xs font-bold w-full shadow">Send Job</button>
+                                <div id="producer-status" class="text-[10px] font-mono text-stone-400 mt-2 h-4">IDLE</div>
+                            </div>
+                            
+                            <!-- Queue -->
+                            <div class="flex-1 bg-stone-100 rounded-lg border-2 border-dashed border-stone-300 p-2 flex items-center relative overflow-hidden" id="queue-container">
+                                <div class="absolute left-2 text-xs font-bold text-stone-400 uppercase tracking-widest rotate-90 origin-left top-1/2 -translate-y-1/2">Message Queue</div>
+                                <div id="job-queue" class="flex gap-2 pl-8 w-full overflow-x-auto">
+                                    <!-- Jobs go here -->
+                                </div>
+                            </div>
+
+                            <!-- Consumer -->
+                            <div class="w-1/4 flex flex-col items-center">
+                                <div class="w-16 h-16 bg-stone-800 rounded-lg flex items-center justify-center text-white text-xs font-bold mb-2 relative">
+                                    Worker
+                                    <div id="worker-spinner" class="absolute top-1 right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse opacity-0"></div>
+                                </div>
+                                <div class="w-full bg-stone-200 rounded-full h-2 mt-2 overflow-hidden">
+                                    <div id="worker-progress" class="bg-green-500 h-full w-0 transition-all duration-100"></div>
+                                </div>
+                                <div id="worker-status" class="text-[10px] font-mono text-stone-500 mt-2">Waiting...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Multiplexing & Stateless -->
+                    <div class="grid md:grid-cols-2 gap-8 mb-8">
+                        <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                            <h3 class="font-bold text-stone-800 mb-4">3. Multiplexing (HTTP/2) vs HTTP/1.1</h3>
+                            <div class="relative h-40 bg-stone-50 rounded border border-stone-200 mb-4 overflow-hidden flex flex-col justify-center gap-4 p-2">
+                                <!-- HTTP 1.1 Lane -->
+                                <div class="relative h-8 bg-stone-200 rounded flex items-center px-2 overflow-hidden">
+                                    <div class="absolute left-2 text-[8px] font-bold text-stone-400">HTTP/1.1 (Serial)</div>
+                                    <div id="h1-track" class="flex gap-2 ml-16 items-center h-full w-full"></div>
+                                </div>
+                                
+                                <!-- HTTP 2 Lane -->
+                                <div class="relative h-8 bg-stone-200 rounded flex items-center px-2 overflow-hidden">
+                                    <div class="absolute left-2 text-[8px] font-bold text-stone-400">HTTP/2 (Mux)</div>
+                                    <div id="h2-track" class="flex gap-1 ml-16 items-center h-full w-full relative"></div>
+                                </div>
+                            </div>
+                            <button onclick="simulateMultiplex()" class="w-full py-2 bg-blue-600 text-white rounded font-bold text-xs shadow hover:bg-blue-500">
+                                Compare Load Speed
+                            </button>
+                        </div>
+
+                        <!-- Section 3: Stateful vs Stateless -->
+                        <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                            <h3 class="font-bold text-stone-800 mb-4">4. Stateful vs Stateless</h3>
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="text-center w-24 p-2 rounded border transition-colors" id="state-srv-1">
+                                    <div class="text-2xl">Server 1</div>
+                                    <div class="text-[9px] text-stone-400 font-mono" id="ram-1">RAM: Empty</div>
+                                </div>
+                                <div class="text-2xl text-stone-300">↔</div>
+                                <div class="text-center w-24 p-2 rounded border transition-colors" id="state-srv-2">
+                                    <div class="text-2xl">Server 2</div>
+                                    <div class="text-[9px] text-stone-400 font-mono" id="ram-2">RAM: Empty</div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-2">
+                                <button onclick="simulateState('stateful')" class="flex-1 py-2 bg-red-100 text-red-800 rounded font-bold text-xs hover:bg-red-200">Stateful (Crash!)</button>
+                                <button onclick="simulateState('stateless')" class="flex-1 py-2 bg-green-100 text-green-800 rounded font-bold text-xs hover:bg-green-200">Stateless (JWT)</button>
+                            </div>
+                            <div id="state-log" class="mt-2 text-[10px] font-mono text-stone-500 h-8">Ready...</div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Sidecar -->
+                    <div class="bg-stone-900 p-6 rounded-xl border border-stone-700 shadow-lg relative overflow-hidden mb-8">
+                        <h3 class="font-bold text-white mb-6">5. The Sidecar Pattern (Kubernetes)</h3>
+                        <div class="flex items-center justify-center gap-0 relative z-10">
+                            <div id="sidecar-req" class="absolute left-0 w-4 h-4 bg-white rounded-full shadow-[0_0_10px_white] opacity-0"></div>
+                            <div class="border-2 border-dashed border-stone-500 p-4 rounded-xl flex gap-4 bg-stone-800/50 relative">
+                                <div class="absolute -top-3 left-4 bg-stone-900 px-2 text-[10px] text-stone-400 font-bold">POD (Unit of Deployment)</div>
+                                <div class="w-24 h-24 bg-purple-900/50 border border-purple-500 rounded flex flex-col items-center justify-center text-center" id="sidecar-box">
+                                    <div class="text-purple-300 text-xs font-bold mb-1">Sidecar</div>
+                                    <div class="text-[8px] text-purple-400">Logging<br>mTLS<br>Proxy</div>
+                                </div>
+                                <div class="w-24 h-24 bg-blue-900/50 border border-blue-500 rounded flex flex-col items-center justify-center text-center" id="app-box">
+                                    <div class="text-blue-300 text-xs font-bold mb-1">Main App</div>
+                                    <div class="text-[8px] text-blue-400">Business<br>Logic</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-6 text-center">
+                            <button onclick="simulateSidecar()" class="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded text-sm font-bold shadow-lg">Send Request</button>
+                        </div>
+                    </div>
+
+                    <!-- gRPC -->
+                    <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                        <h3 class="font-bold text-stone-800 mb-4">6. gRPC vs REST (Serialization)</h3>
+                        <div class="grid md:grid-cols-4 gap-8">
+                            <!-- REST -->
+                            <div class="p-4 border border-blue-100 bg-blue-50 rounded-lg relative">
+                                <div class="flex justify-between mb-2">
+                                    <span class="font-bold text-blue-800 text-sm">REST (JSON)</span>
+                                    <span class="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded">Text Based</span>
+                                </div>
+                                <code class="block text-[10px] font-mono text-blue-900 bg-white p-2 rounded border border-blue-100 mb-2">
+                                    {<br>
+                                    &nbsp;&nbsp;<span class="bg-red-100 text-red-600 px-1 rounded">"id"</span>: 101,<br>
+                                    &nbsp;&nbsp;<span class="bg-red-100 text-red-600 px-1 rounded">"active"</span>: true<br>
+                                    }
+                                </code>
+                                <div class="w-full bg-white h-4 rounded overflow-hidden border border-blue-200 mb-1 flex">
+                                    <div class="bg-red-400 h-full w-[60%]" title="Overhead (Keys/Syntax)"></div>
+                                    <div class="bg-blue-500 h-full w-[40%]" title="Data"></div>
+                                </div>
+                                <div class="flex justify-between text-[10px] text-stone-400">
+                                    <span class="text-red-400 font-bold">60% Overhead</span>
+                                    <span class="text-blue-600 font-bold">~45 Bytes</span>
+                                </div>
+                            </div>
+    
+                                <!-- gRPC -->
+                                <div class="p-4 border border-amber-100 bg-amber-50 rounded-lg relative">
+                                    <div class="flex justify-between mb-2">
+                                        <span class="font-bold text-amber-800 text-sm">gRPC (Protobuf)</span>
+                                        <span class="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded">Binary</span>
+                                    </div>
+                                    <div class="flex gap-1 mb-2 h-[58px] items-center bg-white p-2 rounded border border-amber-100">
+                                        <div class="flex-1 text-center">
+                                            <div class="text-[8px] text-stone-400 mb-1">Tag</div>
+                                            <div class="w-6 h-6 bg-stone-800 text-white text-[8px] flex items-center justify-center rounded font-mono mx-auto">08</div>
+                                        </div>
+                                        <div class="flex-1 text-center">
+                                            <div class="text-[8px] text-stone-400 mb-1">Val</div>
+                                            <div class="w-6 h-6 bg-green-600 text-white text-[8px] flex items-center justify-center rounded font-mono mx-auto">65</div>
+                                        </div>
+                                        <div class="flex-1 text-center">
+                                            <div class="text-[8px] text-stone-400 mb-1">Tag</div>
+                                            <div class="w-6 h-6 bg-stone-800 text-white text-[8px] flex items-center justify-center rounded font-mono mx-auto">10</div>
+                                        </div>
+                                        <div class="flex-1 text-center">
+                                            <div class="text-[8px] text-stone-400 mb-1">Val</div>
+                                            <div class="w-6 h-6 bg-green-600 text-white text-[8px] flex items-center justify-center rounded font-mono mx-auto">01</div>
+                                        </div>
+                                    </div>
+                                    <div class="w-full bg-white h-4 rounded overflow-hidden border border-amber-200 mb-1 flex">
+                                        <div class="bg-stone-600 h-full w-[20%]" title="Tags"></div>
+                                        <div class="bg-green-500 h-full w-[80%]" title="Data"></div>
+                                    </div>
+                                    <div class="flex justify-between text-[10px] text-stone-400">
+                                        <span class="text-green-600 font-bold">High Efficiency</span>
+                                        <span class="text-amber-600 font-bold">~4 Bytes</span>
+                                    </div>
+                                </div>
+                                <!-- GraphQL -->
+                                <div class="p-4 border border-green-100 bg-green-50 rounded-lg relative">
+                                    <div class="flex justify-between mb-2">
+                                        <span class="font-bold text-green-800 text-sm">GraphQL (JSON)</span>
+                                        <span class="text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded">Flexible</span>
+                                    </div>
+                                    <code class="block text-[10px] font-mono text-green-900 bg-white p-2 rounded border border-green-100 mb-2">query User {\n  user(id: 101) { id active profile { name } }\n}</code>
+                                    <div class="text-[9px] text-stone-500 mb-2">Client specifies shape → avoids overfetch (vs REST) but still JSON overhead & server cost for dynamic field resolution.</div>
+                                    <div class="w-full bg-white h-4 rounded overflow-hidden border border-green-200 mb-1 flex">
+                                        <div class="bg-red-300 h-full w-[40%]" title="Overhead (Keys + Query)"></div>
+                                        <div class="bg-green-500 h-full w-[60%]" title="Data"></div>
+                                    </div>
+                                    <div class="flex justify-between text-[10px] text-stone-400">
+                                        <span class="text-green-700 font-bold">Selective Fetch</span>
+                                        <span class="text-green-600 font-bold">~35–50 Bytes</span>
+                                    </div>
+                                </div>
+                                <!-- tRPC -->
+                                <div class="p-4 border border-purple-100 bg-purple-50 rounded-lg relative">
+                                    <div class="flex justify-between mb-2">
+                                        <span class="font-bold text-purple-800 text-sm">tRPC (TypeScript)</span>
+                                        <span class="text-xs bg-purple-200 text-purple-800 px-2 py-0.5 rounded">Type-Safe</span>
+                                    </div>
+                                    <code class="block text-[10px] font-mono text-purple-900 bg-white p-2 rounded border border-purple-100 mb-2">// client
+const user = await trpc.user.getById.query(101);</code>
+                                    <div class="text-[9px] text-stone-500 mb-2">No separate schema file – leverages TS types end-to-end. Uses JSON transport (HTTP / WebSocket) but removes duplication & generates inference at compile time.</div>
+                                    <div class="w-full bg-white h-4 rounded overflow-hidden border border-purple-200 mb-1 flex">
+                                        <div class="bg-red-300 h-full w-[45%]" title="Overhead (Keys)"></div>
+                                        <div class="bg-purple-500 h-full w-[55%]" title="Data"></div>
+                                    </div>
+                                    <div class="flex justify-between text-[10px] text-stone-400">
+                                        <span class="text-purple-700 font-bold">Dev Velocity</span>
+                                        <span class="text-purple-600 font-bold">~40 Bytes</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-xs text-stone-500 mt-4 text-center italic">
+                                <strong>Why?</strong> JSON sends field names (e.g., "id") every time. Protobuf assumes the client has the schema (<code>.proto</code> file), so it only sends field tags (e.g., 1). GraphQL reduces <em>overfetch</em> by allowing clients to request exactly the shape they need. tRPC removes the extra schema layer by sharing TypeScript types, improving developer productivity while still incurring JSON key overhead.
+                            </p>
+                        </div>
+                    </div>
+                `
+            },
+            // INDEX 2: INSIDE THE BOX
+            {
+                title: "Inside the Box",
+                subtitle: "Threads, Context Switching & Nagle",
+                intro: "To scale horizontally, we must first optimize vertically. Understanding how the CPU handles threads and how TCP handles packets is crucial for performance.",
+                chartId: "internalsChart",
+                content: `
+                    <!-- Architecture Comparison Matrix -->
+                    <div class="grid md:grid-cols-3 gap-4 mb-8">
+                        <div class="bg-white p-4 rounded-xl border-t-4 border-blue-500 shadow-sm hover:shadow-md transition-all">
+                            <h4 class="font-bold text-stone-800 mb-2 text-sm">Single Process, Single Thread</h4>
+                            <div class="text-[10px] font-mono bg-blue-50 text-blue-600 px-2 py-1 rounded mb-3 inline-block">Node.js (Default)</div>
+                            <p class="text-xs text-stone-600 mb-3"><strong>Analogy:</strong> One Super-Waiter handling all tables. He never cooks; he just passes tickets to the kitchen (OS) and serves results.</p>
+                            <div class="space-y-2">
+                                <div class="text-[10px] text-green-700 bg-green-50 p-2 rounded"><strong>Pros:</strong> Low memory, high I/O concurrency, no race conditions.</div>
+                                <div class="text-[10px] text-red-700 bg-red-50 p-2 rounded"><strong>Cons:</strong> CPU heavy tasks block the server. One crash kills app.</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-xl border-t-4 border-purple-500 shadow-sm hover:shadow-md transition-all">
+                            <h4 class="font-bold text-stone-800 mb-2 text-sm">Single Process, Multi-Thread</h4>
+                            <div class="text-[10px] font-mono bg-purple-50 text-purple-600 px-2 py-1 rounded mb-3 inline-block">Java, C#, Go</div>
+                            <p class="text-xs text-stone-600 mb-3"><strong>Analogy:</strong> One Restaurant, many Waiters. They share the same kitchen and fridge (Shared Memory Heap).</p>
+                            <div class="space-y-2">
+                                <div class="text-[10px] text-green-700 bg-green-50 p-2 rounded"><strong>Pros:</strong> Parallel CPU work. Efficient memory sharing.</div>
+                                <div class="text-[10px] text-red-700 bg-red-50 p-2 rounded"><strong>Cons:</strong> Race conditions, Context Switching overhead, complex debugging.</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-xl border-t-4 border-orange-500 shadow-sm hover:shadow-md transition-all">
+                            <h4 class="font-bold text-stone-800 mb-2 text-sm">Multi-Process</h4>
+                            <div class="text-[10px] font-mono bg-orange-50 text-orange-600 px-2 py-1 rounded mb-3 inline-block">PHP, Gunicorn, Node Cluster</div>
+                            <p class="text-xs text-stone-600 mb-3"><strong>Analogy:</strong> Franchising. Opening 4 identical restaurants side-by-side. If one burns down, others survive.</p>
+                            <div class="space-y-2">
+                                <div class="text-[10px] text-green-700 bg-green-50 p-2 rounded"><strong>Pros:</strong> Isolation/stability, utilizes multi-core easily.</div>
+                                <div class="text-[10px] text-red-700 bg-red-50 p-2 rounded"><strong>Cons:</strong> High memory (duplicated resources), slow IPC.</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Deep Dive: How Node Works (EXPANDED) -->
+                    <div class="bg-stone-900 text-stone-300 p-8 rounded-xl shadow-xl mb-8 border border-stone-700 relative overflow-hidden min-h-[500px]">
+                         <div class="absolute top-0 right-0 p-4 opacity-10 text-8xl font-bold text-white select-none">V8</div>
+                         <h3 class="text-xl font-bold text-white mb-8 relative z-10">Deep Dive: The Node.js Event Loop & Kernel</h3>
+                         
+                         <div class="flex flex-col md:flex-row gap-12 relative z-10">
+                             <!-- Text Explanation (Detailed) -->
+                             <div class="md:w-1/2 space-y-6 text-sm">
+                                 <div>
+                                     <h4 class="font-bold text-green-400 mb-1">1. The Myth vs. Reality</h4>
+                                     <p class="text-stone-400">Node.js is <span class="text-white font-bold">single-threaded only for your JavaScript code (V8)</span>. The underlying runtime (C++/libuv) and the OS Kernel are highly parallel and asynchronous.</p>
+                                 </div>
+                                 
+                                 <div>
+                                     <h4 class="font-bold text-blue-400 mb-1">2. The Setup (System Calls)</h4>
+                                     <p class="text-stone-400">When you call <code>server.listen(80)</code>, Node makes C++ system calls: <code>socket()</code>, <code>bind(80)</code>, and <code>listen()</code>. The Kernel now "owns" the port and creates a listening socket.</p>
+                                 </div>
+
+                                 <div>
+                                     <h4 class="font-bold text-amber-400 mb-1">3. The Hardware Interrupt</h4>
+                                     <p class="text-stone-400">A packet arrives at the NIC. The NIC raises a <span class="text-white font-bold">hardware interrupt</span>. The CPU pauses Node.js and switches to Kernel Mode to handle the packet. The Kernel performs the TCP handshake without Node's involvement.</p>
+                                 </div>
+
+                                 <div>
+                                     <h4 class="font-bold text-purple-400 mb-1">4. The Notification (epoll/kqueue)</h4>
+                                     <p class="text-stone-400">Once a connection is established, the Kernel doesn't interrupt Node again. Instead, it efficiently adds a "readiness event" to an <span class="text-white font-bold">epoll queue</span>. This is a highly optimized OS mechanism for monitoring thousands of sockets.</p>
+                                 </div>
+
+                                 <div>
+                                     <h4 class="font-bold text-red-400 mb-1">5. The Consumer (Event Loop)</h4>
+                                     <p class="text-stone-400">Node's event loop (managed by libuv) constantly checks this epoll queue. When it sees a new event, it pulls it and executes the corresponding Javascript callback (e.g., <code>app.get('/')</code>).</p>
+                                 </div>
+                             </div>
+
+                             <!-- Vertical Flow Visualizer (Detailed) -->
+                             <div class="md:w-1/2 flex flex-col items-center relative">
+                                 <!-- JS Code -->
+                                 <div class="w-56 p-3 bg-yellow-100 border-2 border-yellow-400 text-yellow-900 rounded text-center font-mono text-xs font-bold z-30 relative shadow-lg">
+                                     V8 Engine (JavaScript)<br>Your Callbacks
+                                     <div class="absolute -bottom-6 left-1/2 w-0.5 h-6 bg-stone-500"></div>
+                                     <div class="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-[8px] bg-stone-900 text-stone-500 px-1">Execute</div>
+                                 </div>
+                                 
+                                 <!-- Node Runtime (libuv) -->
+                                 <div class="w-56 p-3 mt-6 bg-green-100 border-2 border-green-500 text-green-900 rounded text-center font-mono text-xs font-bold z-30 relative shadow-lg">
+                                     Node.js (libuv)<br>Event Loop Consumer
+                                      <div class="absolute -bottom-6 left-1/2 w-0.5 h-6 bg-stone-500"></div>
+                                      <div class="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-[8px] bg-stone-900 text-stone-500 px-1">Polls</div>
+                                 </div>
+
+                                 <!-- Event Queue (New Box) -->
+                                 <div class="w-64 p-3 mt-6 bg-purple-900 border-2 border-purple-500 text-purple-100 rounded text-center font-mono text-xs font-bold z-20 relative shadow-lg">
+                                     Event Queue<br>
+                                     <span class="text-[10px] font-normal opacity-75">(epoll Ready List)</span>
+                                     <div class="absolute -bottom-6 left-1/2 w-0.5 h-6 bg-stone-500"></div>
+                                     <div class="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-[8px] bg-stone-900 text-stone-500 px-1">Pushes Event</div>
+                                 </div>
+
+                                 <!-- Kernel -->
+                                 <div class="w-72 p-4 mt-6 bg-blue-900 border-2 border-blue-500 text-blue-100 rounded text-center font-mono text-xs font-bold z-10 relative shadow-lg">
+                                     OS Kernel (TCP Stack)<br>
+                                     <span class="text-[10px] font-normal opacity-75">Handles Handshakes & Sockets</span>
+                                     <div class="absolute -bottom-6 left-1/2 w-0.5 h-6 bg-stone-500"></div>
+                                     <div class="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-[8px] bg-stone-900 text-stone-500 px-1">Interrupt</div>
+                                 </div>
+
+                                 <!-- Hardware -->
+                                 <div class="w-72 p-3 mt-6 bg-stone-800 border-t-4 border-stone-600 text-stone-400 rounded-b text-center font-mono text-xs font-bold relative shadow-lg">
+                                     Hardware (NIC)<br>
+                                     <span class="text-[10px] font-normal">Receives Packets</span>
+                                 </div>
+                             </div>
+                         </div>
+                    </div>
+
+                    <!-- Network Stack: Queues & Buffers -->
+                    <div class="mb-8">
+                        <h3 class="font-bold text-stone-800 text-lg mb-4">Network Stack: Queues & Buffers</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <!-- SYN Queue -->
+                            <div class="bg-white p-4 rounded-xl border-l-4 border-blue-500 shadow-sm">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h4 class="font-bold text-stone-800 text-sm">1. SYN Queue</h4>
+                                    <span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono">Kernel Space</span>
+                                </div>
+                                <p class="text-xs text-stone-600 leading-relaxed">
+                                    Stores <strong>half-open connections</strong>. When a client sends a <code>SYN</code> packet, the kernel responds with <code>SYN-ACK</code> and places the connection here. It waits for the final <code>ACK</code>.
+                                </p>
+                                <div class="mt-2 text-[10px] text-stone-400 bg-stone-50 p-2 rounded border border-stone-100">
+                                    <strong>Risk:</strong> SYN Flood attacks fill this queue, dropping legitimate packets.
+                                </div>
+                            </div>
+
+                            <!-- Accept Queue -->
+                            <div class="bg-white p-4 rounded-xl border-l-4 border-green-500 shadow-sm">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h4 class="font-bold text-stone-800 text-sm">2. Accept Queue</h4>
+                                    <span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-mono">Kernel Space</span>
+                                </div>
+                                <p class="text-xs text-stone-600 leading-relaxed">
+                                    Stores <strong>fully established connections</strong> (3-way handshake complete). They sit here until the application calls <code>accept()</code> to pick them up.
+                                </p>
+                                <div class="mt-2 text-[10px] text-stone-400 bg-stone-50 p-2 rounded border border-stone-100">
+                                    <strong>Bottleneck:</strong> If your app is slow to accept, this fills up, and the kernel stops acknowledging new SYNs.
+                                </div>
+                            </div>
+
+                            <!-- Receive Buffer -->
+                            <div class="bg-white p-4 rounded-xl border-l-4 border-purple-500 shadow-sm">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h4 class="font-bold text-stone-800 text-sm">3. Receive Buffer (Recv-Q)</h4>
+                                    <span class="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-mono">Per Socket</span>
+                                </div>
+                                <p class="text-xs text-stone-600 leading-relaxed">
+                                    Incoming data packets are stored here by the NIC/Kernel. They wait here until your application performs a <code>read()</code> operation.
+                                </p>
+                                <div class="mt-2 text-[10px] text-stone-400 bg-stone-50 p-2 rounded border border-stone-100">
+                                    <strong>Flow Control:</strong> If full, TCP Window Size drops to 0, telling the sender to stop sending.
+                                </div>
+                            </div>
+
+                            <!-- Send Buffer -->
+                            <div class="bg-white p-4 rounded-xl border-l-4 border-amber-500 shadow-sm">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h4 class="font-bold text-stone-800 text-sm">4. Send Buffer (Send-Q)</h4>
+                                    <span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-mono">Per Socket</span>
+                                </div>
+                                <p class="text-xs text-stone-600 leading-relaxed">
+                                    When you call <code>write()</code>, data is copied here. The function returns immediately (non-blocking). The Kernel handles the actual transmission over the network asynchronously.
+                                </p>
+                                <div class="mt-2 text-[10px] text-stone-400 bg-stone-50 p-2 rounded border border-stone-100">
+                                    <strong>Blocking:</strong> If full, <code>write()</code> blocks (sync) or returns EAGAIN (async).
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200 mb-8">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-stone-800 text-lg">Performance Trade-offs: C10K Problem</h3>
+                            <div class="text-xs font-mono bg-stone-100 px-2 py-1 rounded text-stone-500">Chart.js Visualization</div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="internalsChart"></canvas>
+                        </div>
+                        <div class="mt-4 p-4 bg-stone-50 rounded border border-stone-100 text-xs text-stone-600 space-y-2">
+                            <p><strong>Why the huge difference?</strong></p>
+                            <ul class="list-disc pl-4 space-y-1">
+                                <li><strong>Memory:</strong> Traditional threads require a pre-allocated stack (e.g., 1MB per thread). 10k threads = ~10GB RAM! Node.js creates lightweight objects in heap, taking minimal memory.</li>
+                                <li><strong>Overhead:</strong> When 10k threads fight for CPU time, the OS spends more time <em>switching</em> contexts (saving/loading registers) than running code. Node.js keeps one thread running, maximizing efficiency.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-8">
+                        <!-- Nagle's Simulator -->
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                            <h3 class="font-bold text-stone-800 mb-4">Nagle's Algorithm Simulator</h3>
+                            <div class="flex justify-between items-center mb-4 bg-stone-50 p-2 rounded border border-stone-100">
+                                <div class="text-xs text-stone-500"><span class="font-bold">Goal:</span> Reduce network overhead.</div>
+                                <button onclick="toggleNagle()" id="nagle-toggle" class="flex items-center gap-2 px-3 py-1 rounded-full border transition-all text-xs font-bold bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200">
+                                    <span id="nagle-status-text">Mode: Nagle ON (Buffering)</span>
+                                </button>
+                            </div>
+                            <div class="relative h-40 bg-stone-100 rounded-lg overflow-hidden border-b-4 border-stone-300 mb-4 flex items-end pb-2">
+                                <div class="absolute bottom-0 w-full h-[2px] bg-stone-300"></div>
+                                <div class="absolute bottom-2 w-full h-[1px] bg-dashed border-t border-stone-300 border-dashed"></div>
+                                <div id="tcp-truck" class="absolute left-[40px] bottom-3 w-28 h-14 bg-blue-600 rounded-md shadow-lg z-10 transition-all duration-300 flex items-center justify-center">
+                                    <div class="absolute -bottom-2 left-3 w-4 h-4 bg-black rounded-full border-2 border-stone-500"></div>
+                                    <div class="absolute -bottom-2 right-8 w-4 h-4 bg-black rounded-full border-2 border-stone-500"></div>
+                                    <div class="absolute right-0 bottom-0 w-8 h-full bg-blue-700 rounded-r-md border-l border-blue-800"></div>
+                                    <div id="truck-cargo" class="flex gap-1 pr-8 pl-1 h-full items-center justify-start w-full"></div>
+                                </div>
+                                <div id="overhead-label" class="absolute top-2 right-2 text-[10px] font-mono text-stone-400 bg-white px-2 py-1 rounded border">Header Overhead: 100%</div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="sendByte()" class="flex-1 bg-stone-800 hover:bg-stone-700 text-white px-4 py-3 rounded text-sm font-bold shadow active:transform active:scale-95 transition-all">Send Data ('a')</button>
+                                <button onclick="departTruck()" id="flush-btn" class="px-4 py-3 rounded text-sm font-bold border border-stone-300 text-stone-400 hover:text-stone-600 hover:bg-stone-50 disabled:opacity-50" disabled>Force Flush</button>
+                            </div>
+                        </div>
+
+                        <!-- NEW Context Switching Visualizer -->
+                        <div class="bg-stone-50 p-6 rounded-xl border border-stone-200">
+                            <h3 class="font-bold text-stone-800 mb-4">Context Switching Simulator</h3>
+                            <div class="relative h-64 bg-stone-200 rounded-lg border border-stone-300 overflow-hidden flex flex-col justify-between p-4" id="ctx-container">
+                                <div class="flex justify-center">
+                                    <div class="w-32 h-24 bg-stone-800 rounded-lg border-2 border-stone-600 shadow-xl flex flex-col items-center justify-center relative z-10">
+                                        <div class="text-[10px] font-bold text-stone-400 uppercase mb-1">CPU Core 1</div>
+                                        <div id="cpu-slot" class="w-24 h-12 bg-black/50 rounded border border-stone-600 flex items-center justify-center text-xs text-stone-500 font-mono">IDLE</div>
+                                    </div>
+                                </div>
+                                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 text-center">
+                                     <div id="overhead-status" class="text-[10px] font-bold text-red-500 opacity-0 transition-opacity">⚠ CONTEXT SWITCH OVERHEAD</div>
+                                     <div class="h-1 w-full bg-stone-300 rounded overflow-hidden mt-1 opacity-0 transition-opacity" id="overhead-bar-bg">
+                                         <div id="overhead-progress" class="h-full bg-red-500 w-0"></div>
+                                     </div>
+                                </div>
+                                <div class="flex justify-between px-2 items-end gap-2">
+                                    <div class="w-32 h-20 bg-blue-100 border-2 border-blue-200 rounded flex flex-col items-center justify-end p-2 relative">
+                                        <div class="text-[9px] font-bold text-blue-400 uppercase absolute top-1">RAM (Regs A)</div>
+                                        <div id="thread-a" class="thread-block bg-blue-600" style="top: -150px; left: 50%; transform: translateX(-50%);">Thread A</div>
+                                    </div>
+                                    <div class="w-32 h-20 bg-green-100 border-2 border-green-200 rounded flex flex-col items-center justify-end p-2 relative">
+                                        <div class="text-[9px] font-bold text-green-400 uppercase absolute top-1">RAM (Regs B)</div>
+                                        <div id="thread-b" class="thread-block bg-green-600" style="top: 20px; left: 50%; transform: translateX(-50%);">Thread B</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button onclick="switchContext()" id="ctx-btn" class="mt-4 w-full bg-stone-800 hover:bg-stone-700 text-white px-4 py-2 rounded text-sm font-bold shadow transition-all">Switch Context (Swap Threads)</button>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                title: "Infrastructure",
+                subtitle: "The Production Stack",
+                intro: "A production environment involves multiple layers of defense and distribution. We use Reverse Proxies for security/SSL and Load Balancers for scale.",
+                content: `
+                    <!-- SSL Termination Visualizer -->
+                    <div class="bg-white p-6 rounded-xl border border-stone-200 mb-8">
+                        <h3 class="font-bold text-stone-800 mb-4">1. Reverse Proxy (SSL Termination)</h3>
+                        <div class="flex items-center justify-between gap-4 bg-stone-50 p-6 rounded-lg relative overflow-hidden">
+                            <!-- Dashed flow line -->
+                            <div class="absolute top-1/2 left-0 w-full border-t-2 border-dashed border-stone-300 -z-0"></div>
+                            
+                            <!-- Client -->
+                            <div class="relative z-10 flex flex-col items-center">
+                                <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white text-xl">💻</div>
+                                <div class="mt-2 text-xs font-bold text-stone-600">Client</div>
+                            </div>
+
+                            <!-- HTTPS Packet -->
+                            <div class="relative z-10 animate-bounce">
+                                <div class="bg-red-100 border border-red-400 text-red-600 px-3 py-1 rounded text-xs font-bold flex items-center gap-1">
+                                    <span>🔒 Encrypted</span>
+                                </div>
+                            </div>
+
+                            <!-- Nginx -->
+                            <div class="relative z-10 flex flex-col items-center">
+                                <div class="w-16 h-16 bg-green-600 rounded text-white flex items-center justify-center font-bold text-sm shadow-lg">Nginx</div>
+                                <div class="mt-2 text-xs font-bold text-green-700">Decryption</div>
+                            </div>
+
+                            <!-- HTTP Packet -->
+                            <div class="relative z-10">
+                                <div class="bg-green-100 border border-green-400 text-green-600 px-3 py-1 rounded text-xs font-bold flex items-center gap-1">
+                                    <span>🔓 Plain HTTP</span>
+                                </div>
+                            </div>
+
+                            <!-- Node -->
+                            <div class="relative z-10 flex flex-col items-center">
+                                <div class="w-12 h-12 bg-stone-800 rounded-full flex items-center justify-center text-green-400 text-xl font-bold">JS</div>
+                                <div class="mt-2 text-xs font-bold text-stone-600">Node.js</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-8">
+                        <!-- Load Balancer Simulator -->
+                        <div class="bg-stone-900 p-6 rounded-xl border border-stone-700 shadow-xl">
+                            <div class="flex justify-between items-center mb-6">
+                                <h3 class="font-bold text-white">2. Traffic Distribution</h3>
+                                <div class="flex gap-2">
+                                    <button onclick="state.lbMode='rr'; updateLbUI('rr')" id="btn-rr" class="px-2 py-1 text-[10px] bg-amber-500 text-black font-bold rounded">Round Robin</button>
+                                    <button onclick="state.lbMode='rand'; updateLbUI('rand')" id="btn-rand" class="px-2 py-1 text-[10px] bg-stone-700 text-stone-300 font-bold rounded">Random</button>
+                                </div>
+                            </div>
+                            
+                            <div class="relative h-40 bg-stone-800/50 rounded-lg border border-stone-700 flex flex-col items-center justify-center" id="lb-container">
+                                <!-- Incoming Queue -->
+                                <div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                                    <button onclick="simulateLB()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1 rounded-full text-xs font-bold shadow-lg transition-transform active:scale-95">
+                                        + New Req
+                                    </button>
+                                </div>
+
+                                <!-- LB Box -->
+                                <div class="w-24 h-12 bg-purple-600 rounded flex items-center justify-center text-white text-xs font-bold mb-8 z-10">Load Balancer</div>
+
+                                <!-- Servers -->
+                                <div class="flex gap-4 w-full justify-around px-4">
+                                    <div id="srv-0" class="w-16 h-16 bg-stone-700 border-2 border-stone-600 rounded flex items-center justify-center text-stone-400 text-xs font-mono transition-colors">Srv A</div>
+                                    <div id="srv-1" class="w-16 h-16 bg-stone-700 border-2 border-stone-600 rounded flex items-center justify-center text-stone-400 text-xs font-mono transition-colors">Srv B</div>
+                                    <div id="srv-2" class="w-16 h-16 bg-stone-700 border-2 border-stone-600 rounded flex items-center justify-center text-stone-400 text-xs font-mono transition-colors">Srv C</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Monolith vs Microservices Cards -->
+                        <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                            <h3 class="font-bold text-stone-800 mb-4">3. Monolith vs Microservices</h3>
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <!-- Monolith -->
+                                <div class="p-4 rounded-lg border-t-4 border-blue-600 bg-blue-50">
+                                    <div class="font-bold text-blue-900 mb-2">Monolith</div>
+                                    <ul class="text-[11px] text-stone-700 space-y-1">
+                                        <li><span class="font-bold text-blue-700">Single deployable</span>: one codebase, one runtime.</li>
+                                        <li><span class="font-bold text-blue-700">Strong consistency</span>: in-memory calls, single DB easier transactions.</li>
+                                        <li><span class="font-bold text-blue-700">Simple ops</span>: one build, one release pipeline.</li>
+                                        <li><span class="font-bold text-blue-700">Scale vertically</span>: add CPU/RAM; horizontal via full replicas.</li>
+                                        <li><span class="font-bold text-blue-700">Coupling risk</span>: hard to isolate failures, slower team velocity at scale.</li>
+                                    </ul>
+                                </div>
+                                <!-- Microservices -->
+                                <div class="p-4 rounded-lg border-t-4 border-amber-600 bg-amber-50">
+                                    <div class="font-bold text-amber-900 mb-2">Microservices</div>
+                                    <ul class="text-[11px] text-stone-700 space-y-1">
+                                        <li><span class="font-bold text-amber-700">Independent deploys</span>: smaller services released separately.</li>
+                                        <li><span class="font-bold text-amber-700">Fault isolation</span>: blast radius reduced; resilience via retries/timeouts.</li>
+                                        <li><span class="font-bold text-amber-700">Polyglot</span>: choose best language/DB per service.</li>
+                                        <li><span class="font-bold text-amber-700">Scale per service</span>: hot paths scaled individually.</li>
+                                        <li><span class="font-bold text-amber-700">Ops overhead</span>: service discovery, observability, contracts, eventual consistency.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-stone-500 mt-3">
+                                Rule of thumb: start monolith for speed; extract bounded contexts into services when team size, scaling hotspots, or release friction demand it.
+                            </p>
+                        </div>
+
+                        <!-- 3. Caching Strategies (Expanded) -->
+                        <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                            <h3 class="font-bold text-stone-800 mb-2">4. Caching Strategy: "Cache-Aside"</h3>
+                            <p class="text-xs text-stone-600 mb-4">
+                                Most common pattern. App checks Cache first. If MISS, loads from DB and updates Cache.
+                            </p>
+                            
+                            <!-- Visualizer Container -->
+                            <div class="relative h-56 bg-stone-50 rounded-lg border border-stone-200 overflow-hidden">
+                                <!-- Nodes -->
+                                <div class="absolute left-4 top-1/2 transform -translate-y-1/2 w-14 h-14 bg-blue-500 rounded-full flex flex-col items-center justify-center text-white text-xs z-20 shadow-lg border-2 border-blue-400">
+                                    <span class="font-bold">App</span>
+                                </div>
+                                <div class="absolute right-4 top-4 w-14 h-14 bg-amber-500 rounded flex flex-col items-center justify-center text-white text-xs z-10 shadow-md border-2 border-amber-400">
+                                    <span class="font-bold">DB</span>
+                                    <span class="text-[9px]">Slow</span>
+                                </div>
+                                <div class="absolute right-4 bottom-4 w-14 h-14 bg-red-500 rounded flex flex-col items-center justify-center text-white text-xs z-10 shadow-md border-2 border-red-400">
+                                    <span class="font-bold">Redis</span>
+                                    <span class="text-[9px]">Fast</span>
+                                </div>
+
+                                <!-- Connection Lines -->
+                                <div class="absolute top-[28%] left-12 w-[70%] h-[2px] bg-stone-300 origin-left rotate-[12deg]"></div> <!-- To DB -->
+                                <div class="absolute top-[72%] left-12 w-[70%] h-[2px] bg-stone-300 origin-left rotate-[-12deg]"></div> <!-- To Redis -->
+
+                                <!-- Packet -->
+                                <div id="cache-packet" class="absolute w-4 h-4 bg-stone-800 rounded-full opacity-0 z-30 shadow-sm border border-white"></div>
+                                
+                                <!-- Status Display -->
+                                <div class="absolute bottom-2 left-2 right-2 text-center">
+                                    <div id="cache-status" class="text-xs font-mono text-stone-400 mb-1">Status: Idle</div>
+                                    <div id="cache-latency" class="text-lg font-bold text-stone-800">Latency: --</div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-2 mt-4">
+                                <button onclick="simulateCache()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded text-sm font-bold shadow transition-all active:scale-95">
+                                    Fetch User
+                                </button>
+                                <button onclick="clearCache()" class="bg-stone-200 hover:bg-stone-300 text-stone-600 py-2 px-4 rounded text-sm font-bold shadow-sm transition-all active:scale-95">
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Concepts Explanation -->
+                    <div class="grid md:grid-cols-3 gap-4 mt-8">
+                        <div class="bg-amber-50 p-4 rounded border border-amber-200">
+                            <h4 class="font-bold text-amber-800 text-sm mb-1">Cache-Aside</h4>
+                            <p class="text-xs text-amber-700">Application manages everything. Checks cache -> Checks DB -> Updates Cache. Good for read-heavy.</p>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded border border-blue-200">
+                            <h4 class="font-bold text-blue-800 text-sm mb-1">Write-Through</h4>
+                            <p class="text-xs text-blue-700">App writes to Cache & DB simultaneously. Data is always consistent but writes are slower.</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded border border-green-200">
+                            <h4 class="font-bold text-green-800 text-sm mb-1">TTL (Time-To-Live)</h4>
+                            <p class="text-xs text-green-700">Data expires automatically after X seconds to prevent serving stale content forever.</p>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                title: "API Resilience",
+                subtitle: "Bodyguards & Bouncers",
+                intro: "Protecting the logic from network failures (Idempotency) and malicious users (Rate Limiting).",
+                content: `
+                    <!-- Idempotency Simulator -->
+                    <div class="mb-12">
+                        <h3 class="font-bold text-stone-800 mb-4 flex items-center gap-2">
+                            <span class="w-6 h-6 bg-blue-100 text-blue-600 rounded flex items-center justify-center text-xs">1</span>
+                            Idempotency (Safe Retries)
+                        </h3>
+                        
+                        <div class="grid md:grid-cols-3 gap-6">
+                            <!-- Left: Client Controls -->
+                            <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200 flex flex-col justify-between">
+                                <div>
+                                    <div class="text-xs font-bold text-stone-400 uppercase mb-2">Client State</div>
+                                    <div class="bg-stone-50 p-3 rounded border border-stone-200 mb-4">
+                                        <div class="text-[10px] text-stone-500 mb-1">Current Idempotency Key:</div>
+                                        <div id="current-key-display" class="font-mono text-sm font-bold text-stone-800">req_a1b2</div>
+                                    </div>
+                                </div>
+                                <div class="space-y-3">
+                                    <button onclick="newTransaction()" class="w-full py-2 px-4 bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors">
+                                        <span>↺</span> New Transaction
+                                    </button>
+                                    <button onclick="sendPaymentRequest()" id="pay-btn" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded shadow-md active:transform active:scale-95 transition-all">
+                                        PAY $100
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Middle: Network Visualizer -->
+                            <div class="bg-stone-50 p-6 rounded-xl border border-stone-200 flex flex-col items-center justify-center relative overflow-hidden">
+                                <div class="absolute top-2 left-2 text-[10px] font-bold text-stone-400 uppercase">Network Layer</div>
+                                
+                                <!-- Packet Track -->
+                                <div class="w-full h-2 bg-stone-200 rounded-full relative mb-8">
+                                    <div id="idem-packet" class="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-8 h-8 bg-stone-800 rounded-full shadow-lg z-10 flex items-center justify-center text-[10px] text-white font-bold transition-all duration-1000 left-0 opacity-0">
+                                        $$
+                                    </div>
+                                </div>
+
+                                <div id="network-status" class="text-xs font-mono text-stone-500 h-6">Ready...</div>
+                            </div>
+
+                            <!-- Right: Server Logs -->
+                            <div class="bg-stone-900 p-4 rounded-xl shadow-inner border border-stone-700 flex flex-col">
+                                <div class="text-xs font-bold text-stone-500 uppercase mb-2">Server Logs (Redis)</div>
+                                <div id="server-logs" class="flex-1 overflow-y-auto font-mono text-[10px] space-y-2 text-green-400 max-h-48 pr-2 custom-scrollbar">
+                                    <div class="text-stone-600">Waiting for requests...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Token Bucket Simulator -->
+                    <div>
+                        <h3 class="font-bold text-stone-800 mb-4 flex items-center gap-2">
+                            <span class="w-6 h-6 bg-blue-100 text-blue-600 rounded flex items-center justify-center text-xs">2</span>
+                            Token Bucket Simulator
+                        </h3>
+                        
+                        <div class="flex flex-col md:flex-row gap-8 items-center bg-white p-8 rounded-xl border border-stone-200 shadow-sm">
+                            <div class="relative w-32 h-40 bg-stone-100 border-2 border-stone-300 rounded-b-xl overflow-hidden shadow-inner">
+                                <div id="bucket-level" class="absolute bottom-0 w-full bg-blue-500/80 transition-all duration-300 ease-out flex items-center justify-center text-white font-bold" style="height: 100%;">
+                                    10
+                                </div>
+                                <div id="token-particle" class="absolute top-[-20px] left-1/2 transform -translate-x-1/2 w-6 h-6 bg-amber-400 rounded-full shadow border border-amber-500 opacity-0 z-10"></div>
+                            </div>
+                            
+                            <div class="flex-1 w-full">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-bold text-stone-500 uppercase tracking-widest">Available Tokens</span>
+                                    <span id="token-display" class="text-2xl font-bold text-stone-800">10</span>
+                                </div>
+                                
+                                <button onclick="consumeToken()" class="w-full bg-stone-800 hover:bg-stone-700 text-white py-4 rounded-lg font-bold shadow-lg active:transform active:scale-[0.98] transition-all flex justify-between px-6 items-center group">
+                                    <span>Send Request</span>
+                                    <span id="req-status" class="text-xs font-mono bg-stone-700 px-2 py-1 rounded text-stone-400 group-hover:text-white transition-colors">READY</span>
+                                </button>
+                                
+                                <p class="text-xs text-stone-500 mt-4 text-center">
+                                    Refills 1 token every 2s. Empty bucket = 429 Error.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                title: "Workshop: Design WhatsApp",
+                subtitle: "Distributed Systems at Scale",
+                intro: "This is the Grand Finale. We will design a system capable of handling 1 Billion users, covering Connection Handling, Data Storage, Message Routing, and Resilience.",
+                content: `
+                    <!-- THE WHITEBOARD ARCHITECTURE DIAGRAM -->
+                    <div class="bg-white p-8 rounded-xl border border-stone-300 shadow-xl mb-12 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-green-500 to-purple-500"></div>
+                        <div class="flex justify-between items-center mb-8">
+                            <h3 class="font-bold text-xl text-stone-800">System Architecture: 1B Users</h3>
+                            <div class="text-xs text-stone-400 font-mono">High-Level Design</div>
+                        </div>
+
+                        <!-- Diagram Grid -->
+                        <div class="relative w-full h-[600px] bg-slate-50 rounded-lg border-2 border-slate-200 p-4 overflow-hidden">
+                            
+                            <!-- ZONES Backgrounds -->
+                            <div class="absolute top-4 left-4 right-4 h-24 border-2 border-dashed border-slate-300 rounded-lg bg-slate-100/50 flex items-start justify-center p-2">
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Client Layer</span>
+                            </div>
+                            <div class="absolute top-36 left-4 right-4 h-48 border-2 border-dashed border-blue-200 rounded-lg bg-blue-50/30 flex items-start justify-center p-2">
+                                <span class="text-xs font-bold text-blue-300 uppercase tracking-widest">Service Layer (K8s Cluster)</span>
+                            </div>
+                            <div class="absolute bottom-4 left-4 right-4 h-48 border-2 border-dashed border-amber-200 rounded-lg bg-amber-50/30 flex items-end justify-center p-2">
+                                <span class="text-xs font-bold text-amber-300 uppercase tracking-widest">Data Layer</span>
+                            </div>
+
+                            <!-- COMPONENTS -->
+
+                            <!-- Clients -->
+                            <div class="absolute top-10 left-16 w-24 h-16 bg-white border border-slate-300 rounded shadow flex flex-col items-center justify-center z-20">
+                                <span class="text-2xl">📱</span>
+                                <span class="text-[10px] font-bold">Mobile App</span>
+                            </div>
+                            <div class="absolute top-10 right-16 w-24 h-16 bg-white border border-slate-300 rounded shadow flex flex-col items-center justify-center z-20">
+                                <span class="text-2xl">💻</span>
+                                <span class="text-[10px] font-bold">Web App</span>
+                            </div>
+
+                            <!-- Global LB -->
+                            <div class="absolute top-32 left-1/2 transform -translate-x-1/2 w-64 h-10 bg-stone-800 text-white rounded shadow-lg flex items-center justify-center z-30 text-xs font-bold border-2 border-stone-600">
+                                Global Load Balancer (L4/L7)
+                            </div>
+
+                            <!-- 1. Chat Gateway Service (Left) -->
+                            <div class="absolute top-48 left-16 w-48 h-24 bg-white border-2 border-blue-400 rounded shadow-sm flex flex-col items-center justify-center z-20">
+                                <div class="font-bold text-xs text-blue-600 mb-1">Chat Gateway Service</div>
+                                <div class="text-[9px] text-slate-500 mb-2">Stateful • WebSockets</div>
+                                <div class="flex gap-1">
+                                    <div class="w-8 h-8 bg-blue-100 rounded border border-blue-200 flex items-center justify-center text-[8px] font-bold">A</div>
+                                    <div class="w-8 h-8 bg-blue-100 rounded border border-blue-200 flex items-center justify-center text-[8px] font-bold">B</div>
+                                    <div class="w-8 h-8 bg-blue-100 rounded border border-blue-200 flex items-center justify-center text-[8px]">...</div>
+                                </div>
+                            </div>
+
+                            <!-- 2. Media Service (Center) -->
+                            <div class="absolute top-48 left-1/2 transform -translate-x-1/2 w-32 h-16 bg-white border-2 border-orange-400 rounded shadow-sm flex flex-col items-center justify-center z-20">
+                                <div class="font-bold text-[10px] text-orange-600">Media Service</div>
+                                <div class="text-[8px] text-slate-400">REST • Stateless</div>
+                            </div>
+
+                            <!-- 3. Group / User Services (Right) -->
+                            <div class="absolute top-48 right-16 w-32 h-12 bg-white border border-purple-400 rounded shadow-sm flex flex-col items-center justify-center z-20">
+                                <div class="font-bold text-[10px] text-purple-600">Group Service</div>
+                                <div class="text-[8px] text-slate-400">gRPC • Stateless</div>
+                            </div>
+                            <div class="absolute top-64 right-16 w-32 h-12 bg-white border border-green-400 rounded shadow-sm flex flex-col items-center justify-center z-20">
+                                <div class="font-bold text-[10px] text-green-600">User Service</div>
+                                <div class="text-[8px] text-slate-400">REST • Stateless</div>
+                            </div>
+
+
+                            <!-- 4. Data Stores (Bottom) -->
+                            <!-- Redis directly below Gateway -->
+                            <div class="absolute bottom-12 left-16 w-40 h-20 bg-white border-2 border-red-400 rounded shadow-sm flex flex-col items-center justify-center z-20">
+                                <div class="font-bold text-xs text-red-600">Redis Cluster</div>
+                                <div class="text-[9px] text-slate-500 text-center px-2">Pub/Sub (Routing)<br>Presence</div>
+                            </div>
+
+                            <!-- S3 directly below Media -->
+                             <div class="absolute bottom-12 left-1/2 transform -translate-x-1/2 w-24 h-16 bg-white border-2 border-orange-400 rounded shadow-sm flex flex-col items-center justify-center z-20">
+                                <div class="font-bold text-xs text-orange-600">S3 Blob</div>
+                                <div class="text-[9px] text-slate-500">Images/Video</div>
+                            </div>
+                            
+                            <!-- Cassandra on Right -->
+                            <div class="absolute bottom-12 right-16 w-40 h-20 bg-white border-2 border-yellow-500 rounded shadow-sm flex flex-col items-center justify-center z-20">
+                                <div class="font-bold text-xs text-yellow-600">Cassandra / Scylla</div>
+                                <div class="text-[9px] text-slate-500 text-center px-2">Chat Logs (Write Heavy)<br>PK: ChatID</div>
+                            </div>
+
+
+                            <!-- CONNECTION LINES -->
+                            
+                            <!-- 1. Client to LB -->
+                            <div class="diagram-line w-[2px] h-12 left-[130px] top-20 bg-slate-400"></div> <!-- Mobile down -->
+                            <div class="diagram-line w-[2px] h-12 right-[130px] top-20 bg-slate-400"></div> <!-- Web down -->
+                            
+                            <!-- Horizontal bar connecting clients -->
+                            <div class="diagram-line h-[2px] bg-slate-400 top-[120px]" style="left: 130px; right: 130px;"></div>
+                            
+                            <!-- LB Input -->
+                            <div class="diagram-line w-[2px] h-4 bg-slate-400 left-1/2 top-[120px]"></div>
+
+                            <!-- 2. LB to Services -->
+                            <!-- Vertical out of LB -->
+                            <div class="diagram-line w-[2px] h-4 bg-slate-400 left-1/2 top-[168px]"></div>
+                            <!-- Horizontal Distro Bar -->
+                            <div class="diagram-line h-[2px] bg-slate-400 top-[184px]" style="left: 20%; right: 20%;"></div>
+                            
+                            <!-- Down to Gateway -->
+                            <div class="diagram-line w-[2px] h-4 bg-blue-300 top-[184px]" style="left: 20%;"></div>
+                            <!-- Down to Media -->
+                            <div class="diagram-line w-[2px] h-4 bg-orange-300 top-[184px] left-1/2"></div>
+                            <!-- Down to Group/User -->
+                            <div class="diagram-line w-[2px] h-4 bg-purple-300 top-[184px]" style="right: 20%;"></div>
+
+                            
+                            <!-- 3. Service Inter-connections -->
+                            
+                            <!-- Gateway to Redis (Vertical) -->
+                            <div class="diagram-line w-[2px] h-[184px] left-[160px] top-[288px] bg-red-400"></div>
+                            
+                            <!-- Gateway to Group (Horizontal gRPC) -->
+                            <!-- Gateway Right: 256px. Group Left: Right-16 (approx x=600px or so, need dynamic width). Let's estimate. -->
+                            <!-- We will draw a line from Gateway Right to Group Left -->
+                            <div class="diagram-line h-[2px] bg-purple-300 top-[210px]" style="left: 256px; right: 270px;"></div>
+                            <div class="arch-label top-[200px] left-1/2 transform -translate-x-1/2">gRPC</div>
+
+                            <!-- Gateway to Cassandra (Stepped) -->
+                            <!-- 1. Down from Gateway (offset right) -->
+                            <div class="diagram-line w-[2px] h-[112px] left-[200px] top-[288px] bg-yellow-300"></div>
+                            <!-- 2. Across to Cassandra -->
+                            <div class="diagram-line h-[2px] bg-yellow-300 top-[400px]" style="left: 200px; right: 160px;"></div>
+                            <!-- 3. Down into Cassandra -->
+                            <div class="diagram-line w-[2px] h-[72px] right-[160px] top-[400px] bg-yellow-300"></div>
+
+                            <!-- Media to S3 (Vertical) -->
+                            <div class="diagram-line w-[2px] h-[232px] bg-orange-300 left-1/2 top-[256px] transform -translate-x-1/2"></div>
+
+                        </div>
+                    </div>
+
+                    <!-- Communication Patterns Matrix -->
+                    <div class="bg-white rounded-xl border border-stone-200 shadow-sm p-6 mb-12">
+                        <h3 class="font-bold text-stone-800 mb-4">Communication Patterns Matrix</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left text-stone-600">
+                                <thead class="text-xs text-stone-700 uppercase bg-stone-50">
+                                    <tr>
+                                        <th class="px-6 py-3">Source</th>
+                                        <th class="px-6 py-3">Destination</th>
+                                        <th class="px-6 py-3">Protocol</th>
+                                        <th class="px-6 py-3">Pattern</th>
+                                        <th class="px-6 py-3">Why?</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b">
+                                        <td class="px-6 py-4 font-medium text-stone-900">Client App</td>
+                                        <td class="px-6 py-4">Chat Gateway</td>
+                                        <td class="px-6 py-4 text-green-600 font-mono text-xs">WebSocket</td>
+                                        <td class="px-6 py-4">Push (Stateful)</td>
+                                        <td class="px-6 py-4 text-xs">Low latency, bi-directional real-time chat.</td>
+                                    </tr>
+                                    <tr class="border-b bg-stone-50">
+                                        <td class="px-6 py-4 font-medium text-stone-900">Client App</td>
+                                        <td class="px-6 py-4">Media Service</td>
+                                        <td class="px-6 py-4 text-blue-600 font-mono text-xs">HTTP/REST</td>
+                                        <td class="px-6 py-4">Sync (Request/Response)</td>
+                                        <td class="px-6 py-4 text-xs">Uploading large files (blobs) blocks the WebSocket.</td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td class="px-6 py-4 font-medium text-stone-900">Gateway Node A</td>
+                                        <td class="px-6 py-4">Gateway Node B</td>
+                                        <td class="px-6 py-4 text-red-600 font-mono text-xs">Redis Pub/Sub</td>
+                                        <td class="px-6 py-4">Async (Event)</td>
+                                        <td class="px-6 py-4 text-xs">To route messages between users connected to different servers.</td>
+                                    </tr>
+                                    <tr class="border-b bg-stone-50">
+                                        <td class="px-6 py-4 font-medium text-stone-900">Chat Gateway</td>
+                                        <td class="px-6 py-4">Group Service</td>
+                                        <td class="px-6 py-4 text-amber-600 font-mono text-xs">gRPC</td>
+                                        <td class="px-6 py-4">Sync (RPC)</td>
+                                        <td class="px-6 py-4 text-xs">Internal, high-performance communication.</td>
+                                    </tr>
+                                     <tr>
+                                        <td class="px-6 py-4 font-medium text-stone-900">Push Service</td>
+                                        <td class="px-6 py-4">Client Device</td>
+                                        <td class="px-6 py-4 text-purple-600 font-mono text-xs">FCM / APNS</td>
+                                        <td class="px-6 py-4">Async (Push)</td>
+                                        <td class="px-6 py-4 text-xs">Wake up device when WebSocket is disconnected.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Idempotency & Rate Limiting Box -->
+                    <div class="bg-stone-800 text-white rounded-xl p-6 mb-12 shadow-md border border-stone-700">
+                        <h3 class="font-bold text-amber-500 mb-2">6. The Gateway's Hidden Job: Defense</h3>
+                        <p class="text-sm text-stone-300 mb-4">Before any message enters the core logic, the Chat Gateway performs two critical checks:</p>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="bg-stone-700 p-4 rounded border border-stone-600">
+                                <div class="text-xs font-bold text-blue-300 uppercase mb-1">1. Rate Limiting (Token Bucket)</div>
+                                <p class="text-xs text-stone-400">Prevents spam. If a user sends > 10 msgs/sec, the socket drops the packets before they hit the DB.</p>
+                            </div>
+                            <div class="bg-stone-700 p-4 rounded border border-stone-600">
+                                <div class="text-xs font-bold text-green-300 uppercase mb-1">2. Idempotency Check</div>
+                                <p class="text-xs text-stone-400">Prevents duplicates. If the mobile network retries a message with the same <code>msg_id</code>, the gateway ACKs it but doesn't re-process it.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Deep Dive Simulations (Island / Media / Offline) -->
+                    <div class="space-y-8">
+                        <h3 class="font-bold text-stone-800 text-xl border-b pb-2">Deep Dive Modules</h3>
+                        
+                        <!-- 1. Island Problem -->
+                        <div class="bg-stone-900 rounded-xl p-8 shadow-2xl relative overflow-hidden min-h-[300px]">
+                            <div class="absolute top-4 left-6 text-stone-500 text-xs font-mono">SIMULATION: PUBSUB BRIDGE</div>
+                            <!-- Servers -->
+                            <div class="absolute top-1/2 left-16 transform -translate-y-1/2 w-32 h-32 border-2 border-stone-600 rounded-lg flex flex-col items-center justify-center bg-stone-800 z-10" id="gw1">
+                                <div class="text-stone-400 text-xs font-bold mb-2">Gateway A</div>
+                                <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold shadow-lg shadow-blue-500/50">A</div>
+                            </div>
+
+                            <div class="absolute top-1/2 right-16 transform -translate-y-1/2 w-32 h-32 border-2 border-stone-600 rounded-lg flex flex-col items-center justify-center bg-stone-800 z-10" id="gw99">
+                                <div class="text-stone-400 text-xs font-bold mb-2">Gateway B</div>
+                                <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold shadow-lg shadow-green-500/50 opacity-50 transition-opacity duration-500" id="user-b">B</div>
+                            </div>
+
+                            <!-- Redis Hub -->
+                            <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-0">
+                                <div class="w-24 h-24 bg-red-900/20 rounded-full border border-red-500/30 flex items-center justify-center relative">
+                                    <div class="text-red-500 font-bold text-xs absolute -top-6 w-max">Redis Pub/Sub</div>
+                                    <div id="redis-core" class="w-4 h-4 bg-red-500 rounded-full shadow-[0_0_20px_red]"></div>
+                                    <div id="broadcast-ring" class="absolute inset-0 border border-red-500 rounded-full opacity-0"></div>
+                                </div>
+                            </div>
+
+                            <!-- Message Dot -->
+                            <div id="msg-dot" class="w-3 h-3 bg-white rounded-full absolute opacity-0 z-20 shadow-[0_0_10px_white] pointer-events-none"></div>
+
+                            <!-- Controls -->
+                            <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-4">
+                                <button onclick="simulateWA()" class="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-full font-bold shadow-lg transition-all active:scale-95">
+                                    Simulate Message
+                                </button>
+                            </div>
+                            <div id="wa-log" class="absolute top-6 right-6 text-xs font-mono text-green-400 w-48 text-right h-20"></div>
+                        </div>
+
+                        <!-- 2. Media & Offline Grid -->
+                        <div class="grid md:grid-cols-2 gap-8">
+                             <!-- Media Flow Diagram -->
+                            <div class="bg-white rounded-lg border-l-4 border-indigo-500 shadow-sm overflow-hidden">
+                                <div class="p-4 border-b border-indigo-100 bg-indigo-50 flex justify-between items-center">
+                                    <div>
+                                        <h4 class="font-bold text-stone-800">Media (S3 Flow)</h4>
+                                        <p class="text-[10px] text-stone-500">Decoupling Binary from Sockets</p>
+                                    </div>
+                                    <button onclick="simulateMedia()" class="text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-500">Play</button>
+                                </div>
+                                <div class="relative h-48 bg-stone-50 m-4 rounded border border-stone-200">
+                                    <div class="absolute top-1/2 left-4 transform -translate-y-1/2 w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold z-10">A</div>
+                                    <div class="absolute top-1/2 right-4 transform -translate-y-1/2 w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold z-10">B</div>
+                                    <div class="absolute top-4 left-1/2 transform -translate-x-1/2 w-20 h-10 bg-gray-800 rounded flex items-center justify-center text-gray-200 text-xs font-bold z-10">API</div>
+                                    <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-20 h-10 bg-orange-600 rounded flex items-center justify-center text-white text-xs font-bold z-10">S3</div>
+                                    
+                                    <div class="diagram-line w-full h-[1px] top-1/2 left-0"></div>
+                                    <div class="diagram-line w-[1px] h-full left-1/2 top-0"></div>
+
+                                    <div id="media-dot" class="absolute w-3 h-3 bg-indigo-600 rounded-full opacity-0 z-20"></div>
+                                    <div id="media-log" class="absolute bottom-2 right-2 text-[10px] font-mono text-indigo-600 bg-indigo-50 px-2 py-1 rounded"></div>
+                                </div>
+                            </div>
+
+                            <!-- Offline Diagram -->
+                            <div class="bg-white rounded-lg border-l-4 border-pink-500 shadow-sm overflow-hidden">
+                                <div class="p-4 border-b border-pink-100 bg-pink-50 flex justify-between items-center">
+                                    <div>
+                                        <h4 class="font-bold text-stone-800">Offline Sync</h4>
+                                        <p class="text-[10px] text-stone-500">Store & Forward Pattern</p>
+                                    </div>
+                                    <button onclick="simulateOffline()" class="text-xs bg-pink-600 text-white px-3 py-1 rounded hover:bg-pink-500">Play</button>
+                                </div>
+                                <div class="relative h-48 bg-stone-50 m-4 rounded border border-stone-200">
+                                    <div class="absolute top-1/2 left-4 transform -translate-y-1/2 w-16 h-10 bg-gray-800 rounded flex items-center justify-center text-gray-200 text-xs font-bold z-10">GW</div>
+                                    <div class="absolute top-4 right-1/4 w-16 h-10 bg-purple-600 rounded flex items-center justify-center text-white text-xs font-bold z-10">DB</div>
+                                    <div class="absolute bottom-4 right-1/4 w-16 h-10 bg-red-500 rounded flex items-center justify-center text-white text-xs font-bold z-10">Push</div>
+                                    <div class="absolute top-1/2 right-4 transform -translate-y-1/2 w-10 h-16 bg-stone-800 rounded border-2 border-stone-600 flex items-center justify-center text-white text-[10px] font-bold z-10 opacity-30 transition-opacity duration-500" id="offline-phone">📱</div>
+
+                                    <div id="offline-dot" class="absolute w-3 h-3 bg-pink-600 rounded-full opacity-0 z-20"></div>
+                                    <div id="offline-signal" class="absolute w-4 h-4 rounded-full border-2 border-red-500 opacity-0 z-20"></div>
+                                    <div id="offline-log" class="absolute bottom-2 left-2 text-[10px] font-mono text-pink-600 bg-pink-50 px-2 py-1 rounded"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `
+            }
+        ];
+
+        // INDEX 6: WORKSHOP UBER (Replaced with requested content)
+        courseData.push({
+            title: "Workshop: Design Uber",
+            subtitle: "Orchestrating Chaos with Durable Execution",
+            intro: "Unlike WhatsApp (Stateless/Real-time), Uber is a **Stateful Workflow**. A trip lasts 45 minutes. If a server crashes in minute 20, the ride must continue. We use **Geospatial Indexing** for matching and **Temporal** for reliability.",
+            content: `
+                <!-- ARCHITECTURE DIAGRAM -->
+                <div class="bg-white p-8 rounded-xl border border-stone-300 shadow-xl mb-12 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-stone-800 via-black to-stone-800"></div>
+                    <h3 class="font-bold text-xl text-stone-800 mb-8">Uber System Architecture</h3>
+
+                    <div class="relative w-full h-[600px] bg-slate-50 rounded-lg border-2 border-slate-200 p-4 overflow-hidden">
+                        
+                        <!-- ZONES -->
+                        <div class="absolute top-4 left-4 right-4 h-24 border-2 border-dashed border-slate-300 rounded-lg bg-slate-100/50 flex items-start justify-center p-2">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Client Layer</span>
+                        </div>
+                        <div class="absolute top-36 left-4 w-64 bottom-4 border-2 border-dashed border-blue-200 rounded-lg bg-blue-50/30 flex items-start justify-center p-2">
+                            <span class="text-xs font-bold text-blue-300 uppercase tracking-widest">Real-Time (DISCO)</span>
+                        </div>
+                        <div class="absolute top-36 right-4 left-72 bottom-4 border-2 border-dashed border-amber-200 rounded-lg bg-amber-50/30 flex items-start justify-center p-2">
+                            <span class="text-xs font-bold text-amber-300 uppercase tracking-widest">Workflow & Transaction</span>
+                        </div>
+
+                        <!-- COMPONENTS -->
+                        <!-- Clients -->
+                        <div class="absolute top-10 left-12 w-24 h-16 bg-white border border-slate-300 rounded shadow flex flex-col items-center justify-center z-20">
+                            <span class="text-2xl">🚗</span>
+                            <span class="text-[10px] font-bold">Driver App</span>
+                        </div>
+                        <div class="absolute top-10 right-12 w-24 h-16 bg-white border border-slate-300 rounded shadow flex flex-col items-center justify-center z-20">
+                            <span class="text-2xl">🙋‍♂️</span>
+                            <span class="text-[10px] font-bold">Rider App</span>
+                        </div>
+
+                        <!-- LB -->
+                        <div class="absolute top-32 left-1/2 transform -translate-x-1/2 w-48 h-8 bg-stone-800 text-white rounded flex items-center justify-center z-30 text-[10px] font-bold">
+                            API Gateway / LB
+                        </div>
+
+                        <!-- DISCO (Dispatch) -->
+                        <div class="absolute top-48 left-8 w-56 h-32 bg-white border-2 border-blue-400 rounded shadow-sm flex flex-col items-center justify-center z-20">
+                            <div class="font-bold text-xs text-blue-600 mb-1">DISCO (Dispatch)</div>
+                            <div class="text-[9px] text-slate-500 mb-2">Consistent Hashing (Ringpop)</div>
+                            <div class="w-48 h-12 bg-blue-50 rounded border border-blue-200 flex items-center justify-center text-[9px] text-center">
+                                Stateful Node<br>Matches Rider <-> Driver
+                            </div>
+                        </div>
+
+                        <!-- Geo Service -->
+                        <div class="absolute bottom-12 left-8 w-56 h-24 bg-white border-2 border-red-400 rounded shadow-sm flex flex-col items-center justify-center z-20">
+                            <div class="font-bold text-xs text-red-600">Geo Service</div>
+                            <div class="text-[9px] text-slate-500 mb-1">Google S2 / H3 Index</div>
+                            <div class="flex gap-2">
+                                <div class="px-2 py-1 bg-red-100 text-red-800 rounded text-[8px] font-bold">Redis (Hot)</div>
+                                <div class="px-2 py-1 bg-red-100 text-red-800 rounded text-[8px] font-bold">Kafka (Stream)</div>
+                            </div>
+                        </div>
+
+                        <!-- Trip Service (Workflow) -->
+                        <div class="absolute top-48 right-20 w-64 h-32 bg-white border-2 border-purple-500 rounded shadow-sm flex flex-col items-center justify-center z-20">
+                            <div class="font-bold text-xs text-purple-600 mb-1">Trip Service (Orchestrator)</div>
+                            <div class="text-[9px] text-slate-500 mb-2">Powered by Temporal/Cadence</div>
+                            <div class="w-56 h-12 bg-purple-50 rounded border border-purple-200 flex items-center justify-center text-[9px] text-center font-mono">
+                                start_trip() -> wait() -> charge()
+                            </div>
+                        </div>
+
+                        <!-- Payment -->
+                        <div class="absolute top-[350px] right-20 w-40 h-16 bg-white border-2 border-green-500 rounded shadow-sm flex flex-col items-center justify-center z-20">
+                            <div class="font-bold text-xs text-green-600">Payment Service</div>
+                            <div class="text-[9px] text-slate-500">ACID Transactions</div>
+                        </div>
+
+                        <!-- DB -->
+                        <div class="absolute bottom-12 right-20 w-40 h-20 bg-white border-2 border-yellow-500 rounded shadow-sm flex flex-col items-center justify-center z-20">
+                            <div class="font-bold text-xs text-yellow-600">Trip DB</div>
+                            <div class="text-[9px] text-slate-500">Postgres / MySQL</div>
+                        </div>
+
+                        <!-- LINES -->
+                        <!-- Client to LB -->
+                        <div class="diagram-line w-[2px] h-12 left-[150px] top-20 bg-slate-400"></div>
+                        <div class="diagram-line w-[2px] h-12 right-[150px] top-20 bg-slate-400"></div>
+                        <div class="diagram-line h-[2px] bg-slate-400 top-[120px]" style="left: 150px; right: 150px;"></div>
+                        <div class="diagram-line w-[2px] h-4 left-1/2 top-[120px] bg-slate-400"></div>
+
+                        <!-- LB to Services -->
+                        <div class="diagram-line w-[2px] h-8 left-1/2 top-[160px] bg-slate-400"></div>
+                        <div class="diagram-line h-[2px] bg-slate-400 top-[192px]" style="left: 140px; right: 300px;"></div>
+                        <div class="diagram-line w-[2px] h-8 left-[140px] top-[192px] bg-blue-300"></div> <!-- To Disco -->
+                        <div class="diagram-line w-[2px] h-8 right-[300px] top-[192px] bg-purple-300"></div> <!-- To Trip -->
+
+                        <!-- Disco to Geo -->
+                        <div class="diagram-line w-[2px] h-[96px] left-[140px] top-[320px] bg-blue-300"></div>
+
+                        <!-- Trip to Payment -->
+                        <div class="diagram-line w-[2px] h-[30px] right-[300px] top-[320px] bg-purple-300"></div>
+                        
+                        <!-- Payment to DB -->
+                        <div class="diagram-line w-[2px] h-[70px] right-[300px] top-[416px] bg-green-300"></div>
+
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-12 mb-12">
+                    
+                    <!-- 1. Geo-Spatial Indexing Visualizer -->
+                    <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                        <h3 class="font-bold text-stone-800 mb-2">1. Geospatial Matching (Cells + Scoring)</h3>
+                        <p class="text-xs text-stone-500 mb-3">Bucket drivers into cells, query adjacent cells, then score candidates (distance, rating, ETA).</p>
+
+                        <div class="relative w-full aspect-square bg-stone-50 rounded-lg border border-stone-300 grid grid-cols-8 grid-rows-8 cursor-pointer overflow-hidden" id="geo-grid"></div>
+                        <div class="mt-3 grid grid-cols-2 gap-2 text-[10px]">
+                            <div class="bg-stone-100 rounded p-2 border border-stone-200">
+                                <div class="font-bold text-stone-600 mb-1">Query Stats</div>
+                                <div id="geo-stats" class="font-mono text-stone-700">cells=0, drivers=0, scanned=0</div>
+                            </div>
+                            <div class="bg-stone-100 rounded p-2 border border-stone-200">
+                                <div class="font-bold text-stone-600 mb-1">Best Candidate</div>
+                                <div id="geo-best" class="font-mono text-stone-700">—</div>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-center gap-2">
+                            <label class="text-[10px] text-stone-500">Cell size</label>
+                            <input id="geo-cell-size" type="range" min="4" max="10" value="8" class="flex-1">
+                            <label class="text-[10px] text-stone-500">Max candidates</label>
+                            <input id="geo-max-cand" type="range" min="3" max="20" value="8" class="flex-1">
+                        </div>
+                        <div class="mt-3 flex justify-between items-center">
+                            <span class="text-xs text-stone-600 font-bold" id="geo-status">Click grid to place Rider</span>
+                            <div class="flex gap-2">
+                                <button onclick="seedDrivers()" class="text-xs bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded font-bold">Seed Drivers</button>
+                                <button onclick="resetGeo()" class="text-xs bg-stone-200 hover:bg-stone-300 px-3 py-1 rounded font-bold text-stone-600">Reset Map</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Durable Execution Visualizer -->
+                    <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                        <h3 class="font-bold text-stone-800 mb-4">2. Durable Execution (Temporal)</h3>
+                        <p class="text-xs text-stone-500 mb-4">Normal code fails if the server crashes. Temporal workflows save state to a DB after every step.</p>
+                        
+                        <div class="bg-stone-50 p-4 rounded-lg border border-stone-200 h-[350px] relative">
+                            <!-- Workflow Steps -->
+                            <div class="flex flex-col h-full justify-between relative z-10 pl-8">
+                                <div class="flex items-center gap-4 opacity-30 transition-opacity" id="step-1">
+                                    <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-xs">1</div>
+                                    <div class="text-sm font-bold">Find Driver</div>
+                                </div>
+                                <div class="flex items-center gap-4 opacity-30 transition-opacity" id="step-2">
+                                    <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-xs">2</div>
+                                    <div class="text-sm font-bold">Start Trip</div>
+                                </div>
+                                <div class="flex items-center gap-4 opacity-30 transition-opacity" id="step-3">
+                                    <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-xs">3</div>
+                                    <div class="text-sm font-bold">Wait for Arrival</div>
+                                </div>
+                                <div class="flex items-center gap-4 opacity-30 transition-opacity" id="step-4">
+                                    <div class="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-xs">4</div>
+                                    <div class="text-sm font-bold">Charge Payment</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Connecting Line -->
+                            <div class="absolute left-[27px] top-6 bottom-6 w-[2px] bg-stone-300 z-0"></div>
+
+                            <!-- Crash Overlay -->
+                            <div id="crash-overlay" class="absolute inset-0 bg-red-900/90 z-20 flex flex-col items-center justify-center text-white font-bold opacity-0 pointer-events-none transition-opacity duration-300 backdrop-blur-sm rounded">
+                                <div class="text-4xl mb-2">💥 CRASH!</div>
+                                <div class="text-xs font-mono">Server Restarting...</div>
+                                <div class="text-xs font-mono mt-2 text-yellow-300">State persisted in DB</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 flex gap-2">
+                            <button onclick="startUberWorkflow()" id="btn-start-uber" class="flex-1 bg-stone-800 text-white py-2 rounded text-xs font-bold hover:bg-stone-700">Start Trip</button>
+                            <button onclick="crashUberServer()" id="btn-crash-uber" class="flex-1 bg-red-600 text-white py-2 rounded text-xs font-bold hover:bg-red-500" disabled>Kill Server</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tools Breakdown -->
+                <div class="bg-stone-900 rounded-xl p-6 border border-stone-700">
+                    <h3 class="font-bold text-white mb-4">The Tech Stack</h3>
+                    <div class="grid md:grid-cols-4 gap-4">
+                        <div class="bg-stone-800 p-3 rounded border border-stone-600">
+                            <div class="text-xs font-bold text-blue-400 uppercase mb-1">Ringpop</div>
+                            <p class="text-[10px] text-stone-400">Uber's library for consistent hashing and sharding application state.</p>
+                        </div>
+                        <div class="bg-stone-800 p-3 rounded border border-stone-600">
+                            <div class="text-xs font-bold text-green-400 uppercase mb-1">H3 (Geo)</div>
+                            <p class="text-[10px] text-stone-400">Hexagonal hierarchical spatial index. Used to bucket drivers into map cells.</p>
+                        </div>
+                        <div class="bg-stone-800 p-3 rounded border border-stone-600">
+                            <div class="text-xs font-bold text-purple-400 uppercase mb-1">Cadence / Temporal</div>
+                            <p class="text-[10px] text-stone-400">Fault-tolerant workflow orchestration engine. "Code as infrastructure."</p>
+                        </div>
+                        <div class="bg-stone-800 p-3 rounded border border-stone-600">
+                            <div class="text-xs font-bold text-amber-400 uppercase mb-1">Kafka</div>
+                            <p class="text-[10px] text-stone-400">High-throughput log for ingesting driver location updates (millions/sec).</p>
+                        </div>
+                    </div>
+                </div>
+            `
+        });
+
+        // --- Core Functions ---
+        
+        // ... (navTo, Chart logic, Nagle logic, Token Bucket logic - Preserved) ...
+        
+        function navTo(index) {
+            state.currentSection = index;
+            
+            // Clean up intervals from Part 5
+            if(state.pollInterval) clearInterval(state.pollInterval);
+            
+            // Sidebar UI Update
+            document.querySelectorAll('.nav-btn').forEach((btn, idx) => {
+                if (idx === index) {
+                    btn.classList.add('bg-stone-800', 'border-amber-500');
+                    btn.classList.remove('border-transparent');
+                    btn.querySelector('span:last-child').classList.add('text-white');
+                    btn.querySelector('span:last-child').classList.remove('text-stone-300');
+                    btn.querySelector('span:first-child').classList.add('text-amber-500');
+                } else {
+                    btn.classList.remove('bg-stone-800', 'border-amber-500');
+                    btn.classList.add('border-transparent');
+                    btn.querySelector('span:last-child').classList.remove('text-white');
+                    btn.querySelector('span:last-child').classList.add('text-stone-300');
+                    btn.querySelector('span:first-child').classList.remove('text-amber-500');
+                }
+            });
+
+            // Inject Content
+            const data = courseData[index];
+            const container = document.getElementById('content-container');
+            container.innerHTML = `
+                <div class="animate-fade-in opacity-0 transition-opacity duration-500" id="fade-wrapper">
+                    <header class="mb-8 border-b border-stone-200 pb-6">
+                        <div class="text-xs font-bold text-amber-600 uppercase tracking-widest mb-2">Part ${index + 1}</div>
+                        <h2 class="text-4xl font-bold text-stone-900 mb-2 tracking-tight">${data.title}</h2>
+                        <h3 class="text-xl text-stone-500 font-light">${data.subtitle}</h3>
+                        <p class="mt-4 text-stone-600 leading-relaxed max-w-3xl">${data.intro}</p>
+                    </header>
+                    <div class="content-body">
+                        ${data.content}
+                    </div>
+                </div>
+            `;
+            
+            setTimeout(() => {
+                document.getElementById('fade-wrapper').classList.remove('opacity-0');
+                if (index === 1) {
+                    // Communication (Now Part 2, Index 1)
+                    setPollingMode('short');
+                }
+                if (index === 2) { 
+                    // Inside the Box (Now Part 3, Index 2)
+                    initChart();
+                    // Initialize Nagle Toggle State UI
+                    const toggle = document.getElementById('nagle-toggle');
+                    const label = document.getElementById('nagle-status-text');
+                    const flushBtn = document.getElementById('flush-btn');
+                    if (toggle) {
+                        if (state.nagleOn) {
+                            toggle.classList.remove('bg-green-100', 'text-green-700', 'border-green-300', 'hover:bg-green-200');
+                            toggle.classList.add('bg-blue-100', 'text-blue-700', 'border-blue-300', 'hover:bg-blue-200');
+                            label.innerText = "Mode: Nagle ON (Buffering)";
+                            if(flushBtn) {
+                                flushBtn.disabled = false;
+                                flushBtn.classList.remove('opacity-50');
+                            }
+                        } else {
+                            toggle.classList.remove('bg-blue-100', 'text-blue-700', 'border-blue-300', 'hover:bg-blue-200');
+                            toggle.classList.add('bg-green-100', 'text-green-700', 'border-green-300', 'hover:bg-green-200');
+                            label.innerText = "Mode: Real-time (Instant)";
+                            if(flushBtn) {
+                                flushBtn.disabled = true;
+                                flushBtn.classList.add('opacity-50');
+                            }
+                        }
+                    }
+                }
+                if (index === 4) { 
+                    // Resilience (Now Part 5, Index 4)
+                    startTokenRefill();
+                    // Reset idempotency state
+                    const logs = document.getElementById('server-logs');
+                    if(logs) logs.innerHTML = '<div class="text-stone-600">Waiting for requests...</div>';
+                    state.paymentProcessed = false;
+                }
+                if (index === 5) {
+                    // WhatsApp (Part 6, Index 5)
+                    // No specific init needed, button clicks drive it
+                }
+                if (index === 6) {
+                    // Uber (Part 7, Index 6)
+                    initGeoGrid();
+                    initWorkflow();
+                }
+            }, 50);
+        }
+        
+        // ... (Chart.js and other simulators preserved) ...
+        let chartInstance = null;
+        function initChart() {
+            const ctx = document.getElementById('internalsChart');
+            if(!ctx) return;
+            if(chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Thread-Per-Request (Java)', 'Event Loop (Node.js)'],
+                    datasets: [
+                        { label: 'Memory (MB) / 10k Users', data: [800, 50], backgroundColor: '#f59e0b', yAxisID: 'y' },
+                        { label: 'Context Switch Overhead (%)', data: [85, 5], backgroundColor: '#ef4444', yAxisID: 'y1' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { type: 'linear', position: 'left', title: { display: true, text: 'MB RAM' } },
+                        y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Overhead %' } }
+                    }
+                }
+            });
+        }
+        
+        function toggleNagle() {
+            state.nagleOn = !state.nagleOn;
+            const toggle = document.getElementById('nagle-toggle');
+            const label = document.getElementById('nagle-status-text');
+            const flushBtn = document.getElementById('flush-btn');
+            
+            if (state.nagleOn) {
+                toggle.classList.remove('bg-green-100', 'text-green-700', 'border-green-300', 'hover:bg-green-200');
+                toggle.classList.add('bg-blue-100', 'text-blue-700', 'border-blue-300', 'hover:bg-blue-200');
+                label.innerText = "Mode: Nagle ON (Buffering)";
+                if(flushBtn) {
+                    flushBtn.disabled = false;
+                    flushBtn.classList.remove('opacity-50');
+                }
+            } else {
+                toggle.classList.remove('bg-blue-100', 'text-blue-700', 'border-blue-300', 'hover:bg-blue-200');
+                toggle.classList.add('bg-green-100', 'text-green-700', 'border-green-300', 'hover:bg-green-200');
+                label.innerText = "Mode: Real-time (Instant)";
+                if(flushBtn) {
+                    flushBtn.disabled = true;
+                    flushBtn.classList.add('opacity-50');
+                }
+                if(state.truckLoad > 0) departTruck();
+            }
+        }
+
+        function sendByte() {
+            const truck = document.getElementById('tcp-truck');
+            const cargo = document.getElementById('truck-cargo');
+            const overheadLabel = document.getElementById('overhead-label');
+            
+            const box = document.createElement('div');
+            box.className = "w-4 h-4 bg-white/30 border border-white/50 rounded-sm text-[8px] text-white flex items-center justify-center animate-pulse";
+            box.innerText = "1B";
+            cargo.appendChild(box);
+            state.truckLoad++;
+            
+            const efficiency = state.truckLoad / (state.truckLoad + 40);
+            const overhead = Math.round((1 - efficiency) * 100);
+            overheadLabel.innerText = `Header Overhead: ${overhead}%`;
+            
+            if (!state.nagleOn) {
+                departTruck();
+            } else if (state.truckLoad >= 4) {
+                departTruck();
+            }
+        }
+
+        function departTruck() {
+            const truck = document.getElementById('tcp-truck');
+            if(!truck) return;
+            
+            truck.classList.add('truck-departing');
+            
+            setTimeout(() => {
+                truck.classList.remove('truck-departing');
+                truck.classList.add('truck-reset');
+                
+                const cargo = document.getElementById('truck-cargo');
+                if(cargo) cargo.innerHTML = '';
+                state.truckLoad = 0;
+                
+                const overheadLabel = document.getElementById('overhead-label');
+                if(overheadLabel) overheadLabel.innerText = "Header Overhead: 100%";
+                
+                void truck.offsetWidth;
+                
+                truck.classList.remove('truck-reset');
+                truck.classList.add('truck-arriving');
+                
+                setTimeout(() => {
+                    truck.classList.remove('truck-arriving');
+                }, 400);
+            }, 600);
+        }
+
+        // Context Switching Logic
+        function switchContext() {
+            if(state.isSwitching) return;
+            state.isSwitching = true;
+            
+            const threadA = document.getElementById('thread-a');
+            const threadB = document.getElementById('thread-b');
+            const indicator = document.getElementById('overhead-status');
+            const progress = document.getElementById('overhead-progress');
+            const barBg = document.getElementById('overhead-bar-bg');
+            const cpuSlot = document.getElementById('cpu-slot');
+            
+            // Step 1: Save State
+            cpuSlot.innerText = "SAVING...";
+            
+            if (state.currentThread === 'A') {
+                threadA.style.top = '20px'; 
+                
+                setTimeout(() => {
+                    cpuSlot.innerText = "IDLE (WASTE)";
+                    indicator.style.opacity = '1';
+                    barBg.style.opacity = '1';
+                    progress.style.transition = 'width 1s linear';
+                    progress.style.width = '100%';
+                    
+                    setTimeout(() => {
+                        indicator.style.opacity = '0';
+                        barBg.style.opacity = '0';
+                        progress.style.transition = 'none';
+                        progress.style.width = '0';
+                        
+                        threadB.style.top = '-150px'; 
+                        cpuSlot.innerText = "IDLE"; 
+                        
+                        setTimeout(() => {
+                            cpuSlot.innerText = "RUNNING";
+                            state.currentThread = 'B';
+                            state.isSwitching = false;
+                        }, 800);
+                    }, 1000);
+                }, 800);
+            } else {
+                threadB.style.top = '20px';
+                setTimeout(() => {
+                    cpuSlot.innerText = "IDLE (WASTE)";
+                    indicator.style.opacity = '1';
+                    barBg.style.opacity = '1';
+                    progress.style.transition = 'width 1s linear';
+                    progress.style.width = '100%';
+                    
+                    setTimeout(() => {
+                        indicator.style.opacity = '0';
+                        barBg.style.opacity = '0';
+                        progress.style.transition = 'none';
+                        progress.style.width = '0';
+                        threadA.style.top = '-150px';
+                        cpuSlot.innerText = "IDLE";
+                        setTimeout(() => {
+                            cpuSlot.innerText = "RUNNING";
+                            state.currentThread = 'A';
+                            state.isSwitching = false;
+                        }, 800);
+                    }, 1000);
+                }, 800);
+            }
+        }
+        
+        // ... (LB and Caching Logic Preserved) ...
+        // Persist LB mode/index across navigation and reloads
+        (function initLbPersistence(){
+            try {
+                const savedIdx = localStorage.getItem('lbIndex');
+                const savedMode = localStorage.getItem('lbMode');
+                if (savedIdx !== null) state.lbIndex = Number(savedIdx) % 3;
+                if (savedMode === 'rr' || savedMode === 'rand') state.lbMode = savedMode;
+            } catch {}
+        })();
+
+        function updateLbUI(mode) {
+            const rrBtn = document.getElementById('btn-rr');
+            const randBtn = document.getElementById('btn-rand');
+            
+            if(mode === 'rr') {
+                rrBtn.classList.remove('bg-stone-700', 'text-stone-300');
+                rrBtn.classList.add('bg-amber-500', 'text-black');
+                randBtn.classList.remove('bg-amber-500', 'text-black');
+                randBtn.classList.add('bg-stone-700', 'text-stone-300');
+            } else {
+                randBtn.classList.remove('bg-stone-700', 'text-stone-300');
+                randBtn.classList.add('bg-amber-500', 'text-black');
+                rrBtn.classList.remove('bg-amber-500', 'text-black');
+                rrBtn.classList.add('bg-stone-700', 'text-stone-300');
+            }
+            state.lbMode = mode;
+            try { localStorage.setItem('lbMode', state.lbMode); } catch {}
+        }
+
+        function simulateLB() {
+            const container = document.getElementById('lb-container');
+            const servers = [document.getElementById('srv-0'), document.getElementById('srv-1'), document.getElementById('srv-2')];
+            
+            let targetIndex;
+            if (state.lbMode === 'rr') {
+                targetIndex = state.lbIndex;
+                state.lbIndex = (state.lbIndex + 1) % 3;
+                try { localStorage.setItem('lbIndex', String(state.lbIndex)); } catch {}
+            } else {
+                targetIndex = Math.floor(Math.random() * 3);
+            }
+            
+            const dot = document.createElement('div');
+            dot.className = "absolute w-4 h-4 bg-green-400 rounded-full shadow-lg z-20 transition-all duration-500 ease-in-out";
+            dot.style.top = "20px"; 
+            dot.style.left = "50%";
+            dot.style.transform = "translateX(-50%)";
+            container.appendChild(dot);
+            
+            setTimeout(() => { dot.style.top = "60px"; }, 50);
+            
+            setTimeout(() => {
+                const targetBox = servers[targetIndex];
+                let offset = 0;
+                if(targetIndex === 0) offset = -100;
+                if(targetIndex === 2) offset = 100;
+                
+                dot.style.top = "120px";
+                dot.style.left = `calc(50% + ${offset}px)`;
+            }, 500);
+            
+            setTimeout(() => {
+                const srv = servers[targetIndex];
+                srv.classList.remove('bg-stone-700', 'border-stone-600', 'text-stone-400');
+                srv.classList.add('bg-green-600', 'border-green-400', 'text-white');
+                dot.remove();
+                
+                setTimeout(() => {
+                    srv.classList.add('bg-stone-700', 'border-stone-600', 'text-stone-400');
+                    srv.classList.remove('bg-green-600', 'border-green-400', 'text-white');
+                }, 300);
+            }, 1000);
+        }
+
+        // Expanded Cache Simulation
+        function simulateCache() {
+            const packet = document.getElementById('cache-packet');
+            const latencyLabel = document.getElementById('cache-latency');
+            const statusLabel = document.getElementById('cache-status');
+            
+            // Reset
+            packet.style.transition = 'none';
+            packet.style.opacity = '1';
+            packet.style.top = '50%'; packet.style.left = '48px';
+            
+            if (state.cacheHit) {
+                statusLabel.innerText = "Status: Checking Cache...";
+                setTimeout(() => {
+                    packet.style.transition = 'all 0.4s ease';
+                    packet.style.top = 'calc(100% - 32px)'; 
+                    packet.style.left = 'calc(100% - 32px)';
+                }, 50);
+                
+                setTimeout(() => {
+                    statusLabel.innerText = "Status: Cache HIT!";
+                    packet.style.backgroundColor = "#22c55e"; 
+                    packet.style.top = '50%'; 
+                    packet.style.left = '48px'; 
+                }, 500);
+                
+                setTimeout(() => {
+                    latencyLabel.innerText = "Latency: 2ms";
+                    latencyLabel.className = "text-lg font-bold text-green-600";
+                    packet.style.opacity = '0';
+                }, 900);
+            } else {
+                statusLabel.innerText = "Status: Cache Miss...";
+                latencyLabel.innerText = "Latency: --";
+                latencyLabel.className = "text-lg font-bold text-stone-800";
+                
+                setTimeout(() => {
+                    packet.style.transition = 'all 0.4s ease';
+                    packet.style.top = 'calc(100% - 32px)'; 
+                    packet.style.left = 'calc(100% - 32px)';
+                }, 50);
+                
+                setTimeout(() => {
+                    statusLabel.innerText = "Status: Fetching from DB (Slow)...";
+                    packet.style.backgroundColor = "#f59e0b"; 
+                    packet.style.transition = 'all 1s ease';
+                    packet.style.top = '32px'; 
+                    packet.style.left = 'calc(100% - 32px)'; 
+                }, 500);
+                
+                setTimeout(() => {
+                    statusLabel.innerText = "Status: Updating Cache...";
+                    packet.style.transition = 'all 0.4s ease';
+                    packet.style.top = 'calc(100% - 32px)'; 
+                }, 1600);
+                
+                setTimeout(() => {
+                    statusLabel.innerText = "Status: Returning Data";
+                    packet.style.top = '50%';
+                    packet.style.left = '48px';
+                }, 2100);
+                
+                setTimeout(() => {
+                    latencyLabel.innerText = "Latency: 500ms";
+                    latencyLabel.className = "text-lg font-bold text-amber-600";
+                    packet.style.opacity = '0';
+                    packet.style.backgroundColor = "#1c1917"; 
+                    state.cacheHit = true; 
+                }, 2600);
+            }
+        }
+        
+        function clearCache() {
+            state.cacheHit = false;
+            document.getElementById('cache-status').innerText = "Status: Cache Cleared";
+            document.getElementById('cache-latency').innerText = "Latency: --";
+            document.getElementById('cache-latency').className = "text-lg font-bold text-stone-800";
+        }
+
+        // --- Part 4: Idempotency Logic (New Stateful) ---
+        function newTransaction() {
+            state.currentIdempotencyKey = 'req_' + Math.floor(Math.random() * 10000).toString(16);
+            state.paymentProcessed = false;
+            document.getElementById('current-key-display').innerText = state.currentIdempotencyKey;
+            const logContainer = document.getElementById('server-logs');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'text-blue-400 border-l-2 border-blue-500 pl-2';
+            logEntry.innerText = `New transaction: ${state.currentIdempotencyKey}`;
+            logContainer.prepend(logEntry);
+        }
+
+        function sendPaymentRequest() {
+            const packet = document.getElementById('idem-packet');
+            const status = document.getElementById('network-status');
+            const logContainer = document.getElementById('server-logs');
+            
+            packet.style.transition = 'none';
+            packet.style.left = '0%';
+            packet.style.opacity = '1';
+            packet.className = 'absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-8 h-8 bg-stone-800 rounded-full shadow-lg z-10 flex items-center justify-center text-[10px] text-white font-bold transition-all duration-1000 left-0 opacity-100';
+            packet.innerText = "$$";
+            
+            status.innerText = "Sending Request...";
+            
+            setTimeout(() => { packet.style.left = '100%'; }, 50);
+            
+            setTimeout(() => {
+                if (state.paymentProcessed) {
+                    const logEntry = document.createElement('div');
+                    logEntry.className = 'text-amber-500';
+                    logEntry.innerText = `[Redis] Key ${state.currentIdempotencyKey} FOUND. Returning cached success.`;
+                    logContainer.prepend(logEntry);
+                    status.innerText = "Server: Key Found! (Idempotent)";
+                    packet.className = 'absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-8 h-8 bg-amber-500 rounded-full shadow-lg z-10 flex items-center justify-center text-[10px] text-black font-bold transition-all duration-1000 left-full opacity-100';
+                    packet.innerText = "200";
+                } else {
+                    state.paymentProcessed = true;
+                    const logEntry = document.createElement('div');
+                    logEntry.className = 'text-green-500';
+                    logEntry.innerText = `[App] Processing ${state.currentIdempotencyKey}... Success. Saved.`;
+                    logContainer.prepend(logEntry);
+                    status.innerText = "Processing Payment...";
+                    packet.className = 'absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-8 h-8 bg-green-500 rounded-full shadow-lg z-10 flex items-center justify-center text-[10px] text-white font-bold transition-all duration-1000 left-full opacity-100';
+                    packet.innerText = "200";
+                }
+            }, 1050);
+            
+            setTimeout(() => {
+                packet.style.left = '0%';
+                status.innerText = "Response Received.";
+            }, 2000);
+            
+            setTimeout(() => { packet.style.opacity = '0'; }, 3000);
+        }
+
+
+        // --- Part 4: Token Bucket ---
+        let refillInterval;
+        function startTokenRefill() {
+            state.tokenBucket = 10;
+            clearInterval(refillInterval);
+            refillInterval = setInterval(() => {
+                if (state.tokenBucket < 10) {
+                    state.tokenBucket++;
+                    updateBucketUI();
+                }
+            }, 2000); // 2s Refill
+            updateBucketUI();
+        }
+
+        function consumeToken() {
+            const status = document.getElementById('req-status');
+            const particle = document.getElementById('token-particle');
+            
+            if (state.tokenBucket > 0) {
+                state.tokenBucket--;
+                status.innerText = "200 OK";
+                status.className = "text-xs font-mono bg-green-100 text-green-700 px-2 py-1 rounded transition-colors";
+                
+                particle.style.transition = 'none';
+                particle.style.top = '-20px';
+                particle.style.opacity = '1';
+                setTimeout(() => {
+                    particle.style.transition = 'top 1.5s cubic-bezier(0.5, 0, 1, 1), opacity 1.5s';
+                    particle.style.top = '100%';
+                    particle.style.opacity = '0';
+                }, 50);
+                
+            } else {
+                status.innerText = "429 ERROR";
+                status.className = "text-xs font-mono bg-red-100 text-red-700 px-2 py-1 rounded transition-colors";
+            }
+            updateBucketUI();
+            
+            setTimeout(() => {
+                const s = document.getElementById('req-status');
+                if(s) {
+                   s.innerText = "READY";
+                   s.className = "text-xs font-mono bg-stone-700 px-2 py-1 rounded text-stone-400 group-hover:text-white transition-colors";
+                }
+            }, 2000); // 2s status duration
+        }
+
+        function updateBucketUI() {
+            const display = document.getElementById('token-display');
+            const level = document.getElementById('bucket-level');
+            if (display && level) {
+                display.innerText = state.tokenBucket;
+                level.style.height = `${state.tokenBucket * 10}%`;
+                if(state.tokenBucket === 0) level.classList.add('bg-red-500');
+                else level.classList.remove('bg-red-500');
+            }
+        }
+
+        // --- PART 5: NEW LOGIC ---
+        
+        // 1. Polling Simulator
+        function setPollingMode(mode) {
+            if(state.pollInterval) clearInterval(state.pollInterval);
+            const container = document.getElementById('poll-anim-area');
+            const desc = document.getElementById('poll-desc');
+            
+            if (!container || !desc) return; // Safety check
+            
+            container.innerHTML = ''; // clear old packets
+            
+            // Button styling update
+            ['short', 'long', 'sse', 'ws'].forEach(m => {
+                const btn = document.getElementById(`btn-${m}`);
+                if(btn) {
+                    if(m === mode) {
+                        btn.classList.remove('bg-white', 'text-stone-500');
+                        btn.classList.add('bg-blue-600', 'text-white');
+                    } else {
+                        btn.classList.add('bg-white', 'text-stone-500');
+                        btn.classList.remove('bg-blue-600', 'text-white');
+                    }
+                }
+            });
+
+            if (mode === 'short') {
+                desc.innerText = 'Short Polling: Client asks continuously. Inefficient overhead.';
+                state.pollInterval = setInterval(() => {
+                    createPacket(container, 'req', 'blue');
+                    setTimeout(() => createPacket(container, 'res', 'red', '404'), 1000);
+                }, 1500);
+            } else if (mode === 'long') {
+                desc.innerText = 'Long Polling: Client asks once. Server HOLDS connection open until data is ready.';
+                createPacket(container, 'req', 'blue');
+                setTimeout(() => {
+                    // Simulate server holding
+                    const hold = document.createElement('div');
+                    hold.className = "absolute right-10 top-1/2 transform -translate-y-1/2 text-xs font-bold text-stone-400 animate-pulse";
+                    hold.innerText = "Holding...";
+                    container.appendChild(hold);
+                    
+                    setTimeout(() => {
+                        hold.remove();
+                        createPacket(container, 'res', 'green', '200 OK');
+                    }, 3000);
+                }, 800);
+            } else if (mode === 'sse') {
+                desc.innerText = 'Server-Sent Events (SSE): One request, then Server pushes streams indefinitely.';
+                createPacket(container, 'req', 'blue');
+                setTimeout(() => {
+                    state.pollInterval = setInterval(() => {
+                        createPacket(container, 'res', 'green', 'Event');
+                    }, 1200);
+                }, 1000);
+            } else if (mode === 'ws') {
+                desc.innerText = 'WebSockets: Persistent Bi-directional pipe. Lowest latency.';
+                // Visualizing pipe
+                const pipe = document.createElement('div');
+                pipe.className = "absolute left-0 right-0 top-1/2 h-4 bg-green-200 -translate-y-1/2 opacity-0 transition-opacity duration-500";
+                container.appendChild(pipe);
+                setTimeout(() => pipe.style.opacity = '0.5', 100);
+                
+                state.pollInterval = setInterval(() => {
+                    const dir = Math.random() > 0.5 ? 'req' : 'res';
+                    const color = dir === 'req' ? 'blue' : 'green';
+                    createPacket(container, dir, color, '•', true);
+                }, 600);
+            }
+        }
+
+        function createPacket(container, type, color, text = '', fast = false) {
+            const p = document.createElement('div');
+            p.className = `absolute w-6 h-6 rounded-full flex items-center justify-center text-[8px] text-white font-bold shadow-sm bg-${color}-500 top-1/2 -translate-y-1/2 transition-all ease-linear`;
+            p.style.left = type === 'req' ? '10%' : '90%';
+            p.innerText = text;
+            container.appendChild(p);
+            
+            const duration = fast ? 500 : 1000;
+            
+            // Animate
+            setTimeout(() => {
+                p.style.transitionDuration = `${duration}ms`;
+                p.style.left = type === 'req' ? '90%' : '10%';
+            }, 50);
+            
+            setTimeout(() => { p.remove(); }, duration + 100);
+        }
+
+        // 2. Multiplexing
+        function simulateMultiplex() {
+            const h1 = document.getElementById('h1-track');
+            const h2 = document.getElementById('h2-track');
+            h1.innerHTML = ''; h2.innerHTML = '';
+            
+            // H1: Serial
+            const colors = ['red', 'blue', 'green', 'purple'];
+            let delay = 0;
+            colors.forEach(c => {
+                setTimeout(() => {
+                    const p = document.createElement('div');
+                    p.className = `w-8 h-6 bg-${c}-500 rounded`;
+                    h1.appendChild(p);
+                }, delay);
+                delay += 800; // Serial delay
+            });
+            
+            // H2: Parallel
+            colors.forEach((c, i) => {
+                setTimeout(() => {
+                    const p = document.createElement('div');
+                    p.className = `absolute w-4 h-6 bg-${c}-500 rounded transition-all duration-1000`;
+                    p.style.left = '0';
+                    h2.appendChild(p);
+                    setTimeout(() => p.style.left = `calc(100% - ${(i+1)*20}px)`, 50);
+                }, i * 100); // Almost simultaneous
+            });
+        }
+
+        // 3. State
+        function simulateState(type) {
+            const log = document.getElementById('state-log');
+            const r1 = document.getElementById('ram-1');
+            const r2 = document.getElementById('ram-2');
+            const s1 = document.getElementById('state-srv-1');
+            const s2 = document.getElementById('state-srv-2');
+            
+            // Reset visuals
+            s1.classList.remove('border-red-500', 'bg-red-50');
+            s2.classList.remove('border-green-500', 'bg-green-50');
+            
+            if(type === 'stateful') {
+                log.innerText = "Req 1 -> Server 1 (Session Created)";
+                r1.innerText = "RAM: {User: A}";
+                s1.classList.add('border-green-500', 'bg-green-50');
+                
+                setTimeout(() => {
+                    log.innerText = "Req 2 -> Server 2 (LB Switch)";
+                    s1.classList.remove('border-green-500', 'bg-green-50');
+                    s2.classList.add('border-red-500', 'bg-red-50');
+                    r2.innerText = "RAM: ???";
+                    setTimeout(() => log.innerText = "ERROR: Session not found on Srv 2!", 1000);
+                }, 1500);
+            } else {
+                log.innerText = "Req 1 (Token) -> Server 1";
+                r1.innerText = "Stateless";
+                s1.classList.add('border-green-500', 'bg-green-50');
+                
+                setTimeout(() => {
+                    log.innerText = "Req 2 (Token) -> Server 2";
+                    s1.classList.remove('border-green-500', 'bg-green-50');
+                    s2.classList.add('border-green-500', 'bg-green-50');
+                    r2.innerText = "Stateless";
+                    setTimeout(() => log.innerText = "SUCCESS: Token validated on Srv 2.", 1000);
+                }, 1500);
+            }
+        }
+
+        // 4. Sidecar
+        function simulateSidecar() {
+            const req = document.getElementById('sidecar-req');
+            
+            // Reset
+            req.style.transition = 'none';
+            req.style.left = '-20px';
+            req.style.top = '50%';
+            req.style.transform = 'translateY(-50%)';
+            req.style.opacity = '1';
+            
+            // Animate
+            setTimeout(() => {
+                // To Sidecar
+                req.style.transition = 'all 0.5s linear';
+                req.style.left = '30px'; // Center of sidecar
+            }, 50);
+            
+            setTimeout(() => {
+                // Sidecar Process
+                const sb = document.getElementById('sidecar-box');
+                sb.classList.add('bg-purple-700');
+                setTimeout(() => sb.classList.remove('bg-purple-700'), 300);
+                
+                // To App
+                req.style.left = '130px'; // Center of App
+            }, 600);
+
+             setTimeout(() => {
+                // App Process
+                const ab = document.getElementById('app-box');
+                ab.classList.add('bg-blue-700');
+                setTimeout(() => ab.classList.remove('bg-blue-700'), 300);
+                req.style.opacity = '0';
+            }, 1100);
+        }
+        
+        // ... (Whatsapp & Media Logic Preserved) ...
+        function simulateWA() {
+            if (state.simulatingWA) return;
+            state.simulatingWA = true;
+            const dot = document.getElementById('msg-dot');
+            const log = document.getElementById('wa-log');
+            const ring = document.getElementById('broadcast-ring');
+            const userB = document.getElementById('user-b');
+            const gw1 = document.getElementById('gw1');
+            const gw99 = document.getElementById('gw99');
+            
+            log.innerText = "> A sends msg...";
+            dot.style.transition = 'none';
+            dot.style.opacity = '1';
+            dot.style.top = '50%';
+            dot.style.left = '80px';
+            
+            setTimeout(() => {
+                dot.style.transition = 'all 2s ease-in';
+                dot.style.left = '50%';
+                log.innerText = "> Pub to Redis...";
+            }, 100);
+
+            setTimeout(() => {
+                dot.style.opacity = '0';
+                ring.style.transition = 'all 1s ease-out';
+                ring.style.transform = 'scale(4)';
+                ring.style.opacity = '0';
+                ring.classList.add('border-2');
+                log.innerText = "> BROADCAST!";
+            }, 2000);
+
+            setTimeout(() => {
+                ring.style.transition = 'none';
+                ring.style.transform = 'scale(1)';
+                ring.style.opacity = '1';
+                ring.classList.remove('border-2');
+                dot.style.transition = 'none';
+                dot.style.left = 'calc(100% - 80px)';
+                dot.style.top = '50%';
+                dot.style.opacity = '1';
+                log.innerText = "> GW99: Found User B";
+            }, 3500);
+
+            setTimeout(() => {
+                userB.style.opacity = '1';
+                userB.classList.add('ring-4', 'ring-green-300');
+                log.innerText = "> Delivered.";
+            }, 5000);
+
+            setTimeout(() => {
+                state.simulatingWA = false;
+                dot.style.opacity = '0';
+                userB.classList.remove('ring-4', 'ring-green-300');
+                userB.style.opacity = '0.5';
+                log.innerText = "";
+            }, 7000);
+        }
+
+        function simulateMedia() {
+            if (state.simulatingMedia) return;
+            state.simulatingMedia = true;
+            const dot = document.getElementById('media-dot');
+            const log = document.getElementById('media-log');
+            
+            log.innerText = "A -> API (Upload)";
+            dot.style.transition = 'all 1.0s linear';
+            dot.style.opacity = '1';
+            dot.style.top = '50%'; dot.style.left = '20px';
+            
+            setTimeout(() => { dot.style.top = '20px'; dot.style.left = '50%'; }, 50); // To API
+            setTimeout(() => { log.innerText = "API -> S3 (Save)"; dot.style.top = 'calc(100% - 20px)'; dot.style.left = '50%'; }, 1200); // To S3
+            setTimeout(() => { log.innerText = "S3 -> API (URL)"; dot.style.top = '20px'; dot.style.left = '50%'; }, 2400); // Back to API
+            setTimeout(() => { log.innerText = "API -> A (Return)"; dot.style.top = '50%'; dot.style.left = '20px'; }, 3600); // Back to A
+            setTimeout(() => { log.innerText = "A -> B (Socket URL)"; dot.style.top = '50%'; dot.style.left = 'calc(100% - 20px)'; }, 4800); // A to B
+            setTimeout(() => { log.innerText = "B -> S3 (Download)"; dot.style.top = 'calc(100% - 20px)'; dot.style.left = '50%'; }, 6000); // B to S3
+            setTimeout(() => { state.simulatingMedia = false; dot.style.opacity = '0'; log.innerText = ""; }, 7500);
+        }
+
+        function simulateOffline() {
+            if (state.simulatingOffline) return;
+            state.simulatingOffline = true;
+            const dot = document.getElementById('offline-dot');
+            const signal = document.getElementById('offline-signal');
+            const phone = document.getElementById('offline-phone');
+            const log = document.getElementById('offline-log');
+            
+            phone.style.opacity = "0.3";
+            log.innerText = "GW -> DB (Persist)";
+            dot.style.transition = 'all 1.0s linear';
+            dot.style.opacity = '1';
+            dot.style.top = '50%'; dot.style.left = '20px'; // Start at GW
+            
+            setTimeout(() => { dot.style.top = '20px'; dot.style.left = '75%'; }, 50); // To DB
+            setTimeout(() => { log.innerText = "GW -> Push"; dot.style.top = '50%'; dot.style.left = '20px'; }, 1200); // Back GW
+            setTimeout(() => { dot.style.top = 'calc(100% - 20px)'; dot.style.left = '75%'; }, 2400); // To Push
+            setTimeout(() => { 
+                log.innerText = "Push -> Phone (Wake)";
+                dot.style.opacity = '0';
+                signal.style.top = 'calc(100% - 20px)'; signal.style.left = '75%';
+                signal.style.opacity = '1';
+                signal.style.transition = 'all 1.0s ease-out';
+                signal.style.transform = 'scale(1)';
+            }, 3600);
+            
+            setTimeout(() => {
+                signal.style.top = '50%'; signal.style.left = 'calc(100% - 20px)'; // To Phone
+            }, 3800);
+
+            setTimeout(() => {
+                phone.style.opacity = "1";
+                signal.style.opacity = "0";
+                log.innerText = "Phone Connects (Sync)";
+            }, 5000);
+
+            setTimeout(() => {
+                state.simulatingOffline = false;
+                log.innerText = "";
+            }, 6500);
+        }
+
+        // --- Part 5: Queue Logic ---
+        function enqueueJob() {
+            const queueContainer = document.getElementById('job-queue');
+            const producerStatus = document.getElementById('producer-status');
+            
+            if (!queueContainer || !producerStatus) return;
+
+            // Add to state
+            const id = ++state.jobCounter;
+            state.jobQueue.push({ id });
+            
+            // Visual
+            const job = document.createElement('div');
+            job.className = "min-w-[32px] h-8 bg-blue-500 rounded text-white text-[10px] flex items-center justify-center font-bold animate-pulse";
+            job.innerText = `#${id}`;
+            job.dataset.jobId = String(id);
+            queueContainer.appendChild(job);
+            
+            producerStatus.innerText = "SENT (202 Accepted)";
+            producerStatus.classList.add('text-green-600');
+            setTimeout(() => {
+                if (producerStatus) {
+                    producerStatus.innerText = "IDLE";
+                    producerStatus.classList.remove('text-green-600');
+                }
+            }, 1000);
+            
+            processQueue();
+        }
+
+        function processQueue() {
+            if(state.workerBusy || state.jobQueue.length === 0) return;
+            
+            state.workerBusy = true;
+            const workerStatus = document.getElementById('worker-status');
+            const spinner = document.getElementById('worker-spinner');
+            const progress = document.getElementById('worker-progress');
+            const queueContainer = document.getElementById('job-queue');
+            
+            if (!workerStatus || !spinner || !progress || !queueContainer) return;
+
+            // Get next job
+            const next = state.jobQueue.shift();
+            // Mark visual job as processing (remove pulsing)
+            const jobEl = Array.from(queueContainer.children).find(el => el.dataset.jobId === String(next?.id)) || queueContainer.firstChild;
+            if (jobEl) jobEl.classList.remove('animate-pulse');
+            
+            workerStatus.innerText = "Processing...";
+            spinner.style.opacity = '1';
+            progress.style.width = '0%';
+            
+            // Simulate Work
+            setTimeout(() => { if(progress) progress.style.width = '50%'; }, 500);
+            setTimeout(() => { if(progress) progress.style.width = '100%'; }, 1500);
+            
+            setTimeout(() => {
+                if(workerStatus) workerStatus.innerText = "Waiting...";
+                if(spinner) spinner.style.opacity = '0';
+                if(progress) progress.style.width = '0%';
+                state.workerBusy = false;
+                // Remove processed job element from UI
+                if (jobEl) jobEl.remove();
+                
+                // Check for more
+                if(state.jobQueue.length > 0) processQueue();
+            }, 2000);
+        }
+
+        navTo(0);
+
+        // --- Uber: Geo Grid Visualizer ---
+        function initGeoGrid() {
+            const grid = document.getElementById('geo-grid');
+            const status = document.getElementById('geo-status');
+            if (!grid || !status) return;
+            const sizeSlider = document.getElementById('geo-cell-size');
+            const maxCandSlider = document.getElementById('geo-max-cand');
+            // keep state
+            window.__geo = { cells: [], drivers: new Map(), rider: null, cols: 8, rows: 8 };
+            grid.innerHTML = '';
+            for (let i = 0; i < window.__geo.cols * window.__geo.rows; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'border border-stone-200 relative';
+                cell.dataset.idx = i;
+                cell.onclick = () => placeRider(i);
+                grid.appendChild(cell);
+                window.__geo.cells.push(cell);
+            }
+            if (sizeSlider) sizeSlider.oninput = () => resizeCells(Number(sizeSlider.value));
+            if (maxCandSlider) maxCandSlider.oninput = () => runQuery();
+            resizeCells(Number(sizeSlider?.value || 8));
+        }
+        function resizeCells(cellCols) {
+            // adjust grid columns
+            const grid = document.getElementById('geo-grid');
+            if (!grid) return;
+            const total = window.__geo.cols * window.__geo.rows; // fixed 8x8 container; cellCols changes logical density
+            // visual stays same, logical query changes
+            runQuery();
+        }
+        function resetGeo() {
+            const grid = document.getElementById('geo-grid');
+            const status = document.getElementById('geo-status');
+            if (!grid || !status) return;
+            status.innerText = 'Click grid to place Rider';
+            window.__geo.drivers.clear();
+            window.__geo.rider = null;
+            window.__geo.cells.forEach(c => { c.classList.remove('bg-amber-100','ring-2','ring-blue-300'); c.innerHTML=''; });
+        }
+        function seedDrivers() {
+            const { cells, drivers } = window.__geo;
+            drivers.clear();
+            cells.forEach((c, i) => {
+                c.innerHTML = '';
+                if (Math.random() < 0.25) {
+                    const count = 1 + Math.floor(Math.random()*3);
+                    const arr = [];
+                    for (let k=0;k<count;k++) arr.push({ rating: 3 + Math.random()*2, speed: 10 + Math.random()*20 });
+                    drivers.set(i, arr);
+                    const badge = document.createElement('div');
+                    badge.className = 'absolute bottom-1 right-1 text-[9px] bg-green-100 text-green-700 px-1 rounded border border-green-300';
+                    badge.innerText = arr.length;
+                    c.appendChild(badge);
+                }
+            });
+            runQuery();
+        }
+        function placeRider(idx) {
+            const { cells } = window.__geo;
+            cells.forEach(c => c.classList.remove('bg-amber-100','ring-2','ring-blue-300'));
+            const cell = cells[idx];
+            window.__geo.rider = idx;
+            cell.classList.add('bg-amber-100');
+            runQuery();
+        }
+        function runQuery() {
+            const { cells, drivers, rider, cols } = window.__geo;
+            const maxCand = Number(document.getElementById('geo-max-cand')?.value || 8);
+            const stats = document.getElementById('geo-stats');
+            const bestOut = document.getElementById('geo-best');
+            cells.forEach(c => c.classList.remove('ring-2','ring-blue-300'));
+            if (rider == null) { if (stats) stats.innerText = `cells=${cells.length}, drivers=${drivers.size}, scanned=0`; if(bestOut) bestOut.innerText='—'; return; }
+            // scan 3x3 neighborhood
+            const r = Math.floor(rider / cols), c = rider % cols;
+            const neighborhood = [];
+            for (let dr=-1; dr<=1; dr++) for (let dc=-1; dc<=1; dc++) {
+                const nr = r+dr, nc = c+dc; if (nr<0||nc<0||nr>=8||nc>=8) continue; neighborhood.push(nr*cols+nc);
+            }
+            neighborhood.forEach(i => cells[i].classList.add('ring-2','ring-blue-300'));
+            // collect candidates
+            let candidates = [];
+            neighborhood.forEach(i => {
+                const list = drivers.get(i) || [];
+                list.forEach(d => candidates.push({ cell:i, driver:d, dist: cellDistance(rider,i) }));
+            });
+            // scoring: lower dist better, higher rating better, higher speed better
+            candidates.forEach(c => { c.score = (5-c.dist) + c.driver.rating + (c.driver.speed/30); });
+            candidates.sort((a,b)=> b.score - a.score);
+            const top = candidates.slice(0, maxCand);
+            const scanned = candidates.length;
+            if (stats) stats.innerText = `cells=${cells.length}, drivers=${drivers.size}, scanned=${scanned}`;
+            if (bestOut) {
+                if (top.length) {
+                    const b = top[0];
+                    bestOut.innerText = `cell ${b.cell}, score=${b.score.toFixed(2)}, dist=${b.dist.toFixed(2)}, rating=${b.driver.rating.toFixed(1)}`;
+                } else {
+                    bestOut.innerText = 'No candidates in neighborhood';
+                }
+            }
+        }
+        function cellDistance(a,b) {
+            const cols = 8; const ar = Math.floor(a/cols), ac=a%cols; const br=Math.floor(b/cols), bc=b%cols; return Math.hypot(ar-br, ac-bc);
+        }
+
+        // --- Uber: Durable Workflow Visualizer ---
+        let wfStep = 0; let wfTimer = null; let persistedStep = 0;
+        function initWorkflow() {
+            const crash = document.getElementById('btn-crash-uber');
+            const overlay = document.getElementById('crash-overlay');
+            if (crash && overlay) { crash.disabled = true; overlay.style.opacity = '0'; }
+            ['step-1','step-2','step-3','step-4'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.opacity = '0.3';
+            });
+            wfStep = 0; persistedStep = 0;
+        }
+        function startUberWorkflow() {
+            initWorkflow();
+            const crash = document.getElementById('btn-crash-uber');
+            if (crash) crash.disabled = false;
+            advanceWorkflow();
+        }
+        function advanceWorkflow() {
+            const steps = ['step-1','step-2','step-3','step-4'];
+            if (wfStep >= steps.length) return;
+            const el = document.getElementById(steps[wfStep]);
+            if (el) el.style.opacity = '1';
+            persistedStep = wfStep; // simulate persist
+            wfStep++;
+            wfTimer = setTimeout(() => {
+                if (wfStep < steps.length) advanceWorkflow();
+            }, 2000);
+        }
+        function crashUberServer() {
+            const overlay = document.getElementById('crash-overlay');
+            const crash = document.getElementById('btn-crash-uber');
+            if (overlay) overlay.style.opacity = '1';
+            if (wfTimer) clearTimeout(wfTimer);
+            setTimeout(() => {
+                if (overlay) overlay.style.opacity = '0';
+                if (crash) crash.disabled = true;
+                // resume from persistedStep
+                wfStep = persistedStep;
+                advanceWorkflow();
+            }, 1500);
+        }
+    </script>
+</body>
+</html>

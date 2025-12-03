@@ -1,0 +1,40 @@
+// Proto3 schema: defines the types and RPC contract that both
+// client and server share. The wire format is binary and compact.
+//
+// Key ideas:
+// - "package" groups generated symbols under a namespace.
+// - "service" lists callable RPCs and their request/response messages.
+// - Field numbers ("= 1") are part of the wire format (tags) and
+//   must remain stable for backward compatibility.
+// - Types (e.g., int32, bool, string) are strongly typed and smaller
+//   over the wire than JSON keys + values.
+
+syntax = "proto3";
+package demo; // Generated objects will be under the "demo" namespace
+
+// A simple service exposing an RPC method.
+service Greeter {
+  // Unary RPC: client sends a single request, server returns a single reply.
+  rpc GetUser (UserRequest) returns (UserReply) {}
+  // Classic greeting example returning a message string.
+  rpc SayHello (HelloRequest) returns (HelloReply) {}
+}
+
+// Request message carrying an integer user id.
+message UserRequest {
+  int32 id = 1; // Tag 1: first field in the message
+}
+
+// Response message carrying the user id and an "active" flag.
+message UserReply {
+  int32 id = 1;    // Tag 1
+  bool active = 2; // Tag 2
+}
+
+// Request/Reply for the greeting method.
+message HelloRequest {
+  string name = 1; // Who to greet
+}
+message HelloReply {
+  string message = 1; // The greeting message, e.g., "Hello, Ada!"
+}

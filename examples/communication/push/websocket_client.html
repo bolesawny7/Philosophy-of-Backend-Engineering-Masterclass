@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>WebSocket Demo Client</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
+                Arial, sans-serif;
+            margin: 20px;
+            background: #f7f7f7;
+            color: #222;
+        }
+
+        #log {
+            height: 300px;
+            overflow: auto;
+            background: #111;
+            color: #e5e5e5;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: ui-monospace, Menlo, Consolas, monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        input,
+        button {
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background: #2563eb;
+            color: #fff;
+            border-color: #1d4ed8;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        #status {
+            font-size: 12px;
+            color: #555;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <h3>WebSocket Broadcast Demo</h3>
+    <div id="status">Disconnected</div>
+    <div id="log"></div>
+    <div class="row">
+        <input id="msg" placeholder="Type a message..." style="flex: 1" />
+        <button id="send" disabled>Send</button>
+    </div>
+
+    <script>
+        const logEl = document.getElementById("log");
+        const statusEl = document.getElementById("status");
+        const inputEl = document.getElementById("msg");
+        const sendBtn = document.getElementById("send");
+
+        let myId = null;
+        let ws = null;
+
+        function log(line) {
+            const at = new Date().toLocaleTimeString();
+            logEl.textContent += `[${at}] ${line}\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function connect() {
+            ws = new WebSocket("ws://localhost:4200");
+            statusEl.textContent = "Connecting to ws://localhost:4200 ...";
+
+            ws.onopen = () => {
+                statusEl.textContent = "Connected";
+                sendBtn.disabled = false;
+                log("connected");
+            };
+
+            ws.onmessage = (e) => {
+                try {
+                    const msg = JSON.parse(e.data);
+                    if (msg.type === "welcome") {
+                        myId = msg.id;
+                        log(`welcome: your id is ${myId}`);
+                        return;
+                    }
+                    if (msg.type === "broadcast") {
+                        const who = msg.from === myId ? "you" : `client ${msg.from}`;
+                        log(`${who}: ${msg.payload}`);
+                    } else {
+                        log(e.data);
+                    }
+                } catch {
+                    log(e.data);
+                }
+            };
+
+            ws.onclose = () => {
+                sendBtn.disabled = true;
+                statusEl.textContent = "Disconnected (reconnecting in 1s)";
+                setTimeout(connect, 1000);
+            };
+
+            ws.onerror = (e) => log("socket error");
+        }
+
+        sendBtn.onclick = () => {
+            const text = inputEl.value.trim();
+            if (!text || !ws || ws.readyState !== 1) return;
+            ws.send(text);
+            inputEl.value = "";
+            inputEl.focus();
+        };
+
+        connect();
+    </script>
+</body>
+
+</html>

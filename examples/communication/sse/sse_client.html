@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset='utf-8'><title>SSE Client</title></head>
+<body>
+<h3>SSE Client</h3>
+<pre id='log'></pre>
+<script>
+  const log = document.getElementById('log');
+  const es = new EventSource('http://localhost:4100/events');
+  es.onmessage = (e) => { log.textContent += `MESSAGE: ${e.data}\n`; };
+  es.addEventListener('init', e => { log.textContent += `INIT: ${e.data}\n`; });
+  es.onerror = (e) => { log.textContent += 'ERROR\n'; };
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+    "name": "philosophy-of-backend-engineering-examples",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "description": "Example code for communication patterns and performance demos",
+    "scripts": {
+        "short-poll": "node communication/polling/short_poll_client.js",
+        "long-poll": "node communication/polling/long_poll_server.js",
+        "start-poll-demo": "node communication/polling/start_poll_demo.js",
+        "sse": "node communication/sse/sse_server.js",
+        "ws": "node communication/push/websocket_server.js",
+        "queue": "node communication/queues/in_memory_queue.js",
+        "http": "node communication/request_response/http_server.js",
+        "rest": "node communication/rest/rest_server.js",
+        "graphql": "node communication/graphql/graphql_server.js",
+        "grpc:server": "node communication/grpc/grpc_server.js",
+        "grpc:client": "node communication/grpc/grpc_client.js",
+        "trpc": "node communication/trpc/trpc_server.js"
+    },
+    "dependencies": {
+        "ws": "^8.17.0",
+        "graphql-yoga": "^5.1.3",
+        "graphql": "^16.9.0",
+        "@grpc/grpc-js": "^1.10.5",
+        "@grpc/proto-loader": "^0.7.7",
+        "@trpc/server": "^10.45.2",
+        "zod": "^3.23.8"
+    }
+}

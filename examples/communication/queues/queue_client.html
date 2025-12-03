@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Queue Monitor</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:20px;background:#f7f7f7;color:#222}
+    #log{height:320px;overflow:auto;background:#111;color:#e5e5e5;padding:10px;border-radius:6px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap}
+    .stats{display:flex;gap:16px;margin:10px 0}
+    .badge{background:#e5e7eb;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px}
+  </style>
+</head>
+<body>
+  <h3>In-Memory Queue Monitor</h3>
+  <div class="stats">
+    <div class="badge">Produced: <span id="p">0</span></div>
+    <div class="badge">Consumed: <span id="c">0</span></div>
+    <div class="badge">Queue Size: <span id="q">0</span></div>
+  </div>
+  <div class="stats">
+    <button id="add1" class="badge" style="cursor:pointer">Enqueue 1</button>
+    <button id="add10" class="badge" style="cursor:pointer">Enqueue 10</button>
+    <button id="pause" class="badge" style="cursor:pointer">Pause</button>
+    <button id="resume" class="badge" style="cursor:pointer">Resume</button>
+  </div>
+  <div id="log"></div>
+
+  <script>
+    const pEl = document.getElementById('p');
+    const cEl = document.getElementById('c');
+    const qEl = document.getElementById('q');
+    const logEl = document.getElementById('log');
+
+    function log(line){
+      const at = new Date().toLocaleTimeString();
+      logEl.textContent += `[${at}] ${line}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    const es = new EventSource('http://localhost:4400/events');
+    es.addEventListener('init', e => {
+      try{
+        const s = JSON.parse(e.data);
+        pEl.textContent = s.produced; cEl.textContent = s.consumed; qEl.textContent = s.queueSize;
+        log(`init produced=${s.produced} consumed=${s.consumed} queueSize=${s.queueSize}`);
+      }catch{ log('init'); }
+    });
+
+    es.onmessage = (e) => {
+      try{
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'queued') { pEl.textContent = Number(pEl.textContent) + 1; qEl.textContent = msg.size; log(`queued #${msg.id} size=${msg.size}`); }
+        else if (msg.type === 'processed') { cEl.textContent = Number(cEl.textContent) + 1; qEl.textContent = msg.size; log(`processed #${msg.id} latency=${msg.latency}ms size=${msg.size}`); }
+        else if (msg.type === 'backpressure') { qEl.textContent = msg.size; log(`backpressure size=${msg.size}`); }
+        else if (msg.type === 'stopped') { log(`stopped produced=${msg.produced} consumed=${msg.consumed} size=${msg.size}`); es.close(); }
+        else { log(e.data); }
+      } catch { log(e.data); }
+    };
+
+    es.onerror = () => log('SSE error');
+
+    // Controls
+    const add1 = document.getElementById('add1');
+    const add10 = document.getElementById('add10');
+    const pause = document.getElementById('pause');
+    const resume = document.getElementById('resume');
+
+    add1.onclick = async () => {
+      const r = await fetch('http://localhost:4400/enqueue?count=1');
+      const j = await r.json();
+      log(`enqueue accepted=${j.accepted} rejected=${j.rejected} size=${j.queueSize}`);
+    };
+    add10.onclick = async () => {
+      const r = await fetch('http://localhost:4400/enqueue?count=10');
+      const j = await r.json();
+      log(`enqueue accepted=${j.accepted} rejected=${j.rejected} size=${j.queueSize}`);
+    };
+    pause.onclick = async () => {
+      const r = await fetch('http://localhost:4400/control?action=pause');
+      const j = await r.json();
+      log(`paused running=${j.running}`);
+    };
+    resume.onclick = async () => {
+      const r = await fetch('http://localhost:4400/control?action=resume');
+      const j = await r.json();
+      log(`resumed running=${j.running}`);
+    };
+  </script>
+</body>
+</html>

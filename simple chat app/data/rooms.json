@@ -1,0 +1,13 @@
+[
+  {
+    "id": "b0a75d81-f5f9-458c-b5e5-1a2a3004fc77",
+    "name": "boules_thomas",
+    "description": "room1",
+    "createdAt": "2026-01-22T13:57:11.527Z",
+    "createdBy": "b9d3ad4b-b83f-425f-bbc2-ef1525b5d271",
+    "memberIds": [
+      "b9d3ad4b-b83f-425f-bbc2-ef1525b5d271",
+      "2c9a85ec-0e73-4720-a6a4-24930430ae43"
+    ]
+  }
+]

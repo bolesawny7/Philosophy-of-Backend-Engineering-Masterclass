@@ -1,0 +1,433 @@
+{
+	"info": {
+		"_postman_id": "chat-app-collection",
+		"name": "Chat Application API",
+		"description": "A collection of requests for testing the Chat Application API.\n\nThis API demonstrates multiple communication patterns:\n- GraphQL (queries and mutations)\n- Server-Sent Events (SSE)\n- Webhooks\n- Push Notifications",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Setup",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/health",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["health"]
+						}
+					}
+				},
+				{
+					"name": "API Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": [""]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "2. GraphQL - Users",
+			"item": [
+				{
+					"name": "Create User (Alice)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"mutation { createUser(username: \\\"alice\\\", email: \\\"alice@example.com\\\") { id username email createdAt isOnline } }\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3000/graphql",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["graphql"]
+						}
+					}
+				},
+				{
+					"name": "Create User (Bob)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"mutation { createUser(username: \\\"bob\\\", email: \\\"bob@example.com\\\") { id username email } }\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3000/graphql",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["graphql"]
+						}
+					}
+				},
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"query { users { id username email isOnline createdAt } }\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3000/graphql",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["graphql"]
+						}
+					}
+				},
+				{
+					"name": "Get Online Users",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"query { onlineUsers { id username } }\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3000/graphql",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["graphql"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "3. GraphQL - Rooms",
+			"item": [
+				{
+					"name": "Create Room",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"mutation { createRoom(name: \\\"General\\\", description: \\\"General discussion room\\\", creatorId: \\\"{{userId}}\\\") { id name description memberCount } }\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3000/graphql",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["graphql"]
+						},
+						"description": "Replace {{userId}} with an actual user ID from the Create User response"
+					}
+				},
+				{
+					"name": "Get All Rooms",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"query { rooms { id name description memberCount members { username } } }\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3000/graphql",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["graphql"]
+						}
+					}
+				},
+				{
+					"name": "Join Room",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"mutation { joinRoom(roomId: \\\"{{roomId}}\\\", userId: \\\"{{userId}}\\\") { id name memberCount members { username } } }\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3000/graphql",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["graphql"]
+						},
+						"description": "Replace {{roomId}} and {{userId}} with actual IDs"
+					}
+				}
+			]
+		},
+		{
+			"name": "4. GraphQL - Messages",
+			"item": [
+				{
+					"name": "Send Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"mutation { sendMessage(roomId: \\\"{{roomId}}\\\", senderId: \\\"{{userId}}\\\", content: \\\"Hello, this is a test message!\\\") { id content createdAt sender { username } } }\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3000/graphql",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["graphql"]
+						},
+						"description": "Replace {{roomId}} and {{userId}} with actual IDs.\n\nThis will trigger:\n- SSE event to connected clients\n- Webhook POST to registered endpoints\n- Push notifications to room members"
+					}
+				},
+				{
+					"name": "Get Room Messages",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"query { messages(roomId: \\\"{{roomId}}\\\", limit: 50) { id content type createdAt sender { username } } }\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3000/graphql",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["graphql"]
+						}
+					}
+				},
+				{
+					"name": "Get Room with Messages",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"query { room(id: \\\"{{roomId}}\\\") { id name description members { id username } messages { id content createdAt sender { username } } latestMessage { content } } }\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3000/graphql",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["graphql"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "5. SSE",
+			"item": [
+				{
+					"name": "Connect to SSE Stream",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "text/event-stream"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:3000/events",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["events"]
+						},
+						"description": "Note: Postman will show the initial response but won't stream events.\n\nFor proper SSE testing, use curl:\n\ncurl -N http://localhost:3000/events"
+					}
+				},
+				{
+					"name": "SSE Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/events/status",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["events", "status"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "6. Webhooks",
+			"item": [
+				{
+					"name": "Register Webhook",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"url\": \"http://localhost:3000/webhooks/test\",\n  \"events\": [\"message.created\", \"user.joined\", \"room.created\"]\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3000/webhooks",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["webhooks"]
+						}
+					}
+				},
+				{
+					"name": "List Webhooks",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/webhooks",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["webhooks"]
+						}
+					}
+				},
+				{
+					"name": "Delete Webhook",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/webhooks/{{webhookId}}",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["webhooks", "{{webhookId}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "7. Push Notifications",
+			"item": [
+				{
+					"name": "Get VAPID Public Key",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/push/vapid-public-key",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["push", "vapid-public-key"]
+						}
+					}
+				},
+				{
+					"name": "Get User Subscriptions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/push/subscriptions/{{userId}}",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "3000",
+							"path": ["push", "subscriptions", "{{userId}}"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "userId",
+			"value": "replace-with-user-id"
+		},
+		{
+			"key": "roomId",
+			"value": "replace-with-room-id"
+		},
+		{
+			"key": "webhookId",
+			"value": "replace-with-webhook-id"
+		}
+	]
+}

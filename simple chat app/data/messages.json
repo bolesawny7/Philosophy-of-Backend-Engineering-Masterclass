@@ -1,0 +1,74 @@
+[
+  {
+    "id": "ae6456cd-56e6-45dd-8d61-fe714b5d01cc",
+    "roomId": "b0a75d81-f5f9-458c-b5e5-1a2a3004fc77",
+    "senderId": "2c9a85ec-0e73-4720-a6a4-24930430ae43",
+    "content": "thomas joined the room",
+    "type": "system",
+    "createdAt": "2026-01-22T13:57:18.979Z"
+  },
+  {
+    "id": "3d9efe97-9a2c-4c4b-91b9-3f0d95528f91",
+    "roomId": "b0a75d81-f5f9-458c-b5e5-1a2a3004fc77",
+    "senderId": "b9d3ad4b-b83f-425f-bbc2-ef1525b5d271",
+    "content": "hello",
+    "type": "text",
+    "createdAt": "2026-01-22T13:57:29.157Z"
+  },
+  {
+    "id": "6dc4eebe-16f8-4078-bc9e-45ad4c6b35e5",
+    "roomId": "b0a75d81-f5f9-458c-b5e5-1a2a3004fc77",
+    "senderId": "2c9a85ec-0e73-4720-a6a4-24930430ae43",
+    "content": "er",
+    "type": "text",
+    "createdAt": "2026-01-22T13:57:44.154Z"
+  },
+  {
+    "id": "edebd6d3-dc1b-4324-8aaa-fc366481daf6",
+    "roomId": "b0a75d81-f5f9-458c-b5e5-1a2a3004fc77",
+    "senderId": "b9d3ad4b-b83f-425f-bbc2-ef1525b5d271",
+    "content": "err",
+    "type": "text",
+    "createdAt": "2026-01-22T13:57:47.820Z"
+  },
+  {
+    "id": "fd469ff0-2f30-46cf-ae2c-20c107134764",
+    "roomId": "b0a75d81-f5f9-458c-b5e5-1a2a3004fc77",
+    "senderId": "b9d3ad4b-b83f-425f-bbc2-ef1525b5d271",
+    "content": "hi",
+    "type": "text",
+    "createdAt": "2026-01-22T14:01:34.020Z"
+  },
+  {
+    "id": "ed92f936-cb41-4516-afb4-a26476ccaa45",
+    "roomId": "b0a75d81-f5f9-458c-b5e5-1a2a3004fc77",
+    "senderId": "2c9a85ec-0e73-4720-a6a4-24930430ae43",
+    "content": "er",
+    "type": "text",
+    "createdAt": "2026-01-22T14:01:36.370Z"
+  },
+  {
+    "id": "e5d3cc8c-232a-4897-adbe-b795a0450467",
+    "roomId": "b0a75d81-f5f9-458c-b5e5-1a2a3004fc77",
+    "senderId": "b9d3ad4b-b83f-425f-bbc2-ef1525b5d271",
+    "content": "er",
+    "type": "text",
+    "createdAt": "2026-01-22T14:02:02.210Z"
+  },
+  {
+    "id": "e1db715b-10b6-4bf6-9594-ecf75eabfc5f",
+    "roomId": "b0a75d81-f5f9-458c-b5e5-1a2a3004fc77",
+    "senderId": "b9d3ad4b-b83f-425f-bbc2-ef1525b5d271",
+    "content": "er",
+    "type": "text",
+    "createdAt": "2026-01-22T14:03:41.606Z"
+  },
+  {
+    "id": "16225207-02c3-41cd-befe-7bd181eb58f4",
+    "roomId": "b0a75d81-f5f9-458c-b5e5-1a2a3004fc77",
+    "senderId": "2c9a85ec-0e73-4720-a6a4-24930430ae43",
+    "content": "e",
+    "type": "text",
+    "createdAt": "2026-01-22T14:03:43.156Z"
+  }
+]

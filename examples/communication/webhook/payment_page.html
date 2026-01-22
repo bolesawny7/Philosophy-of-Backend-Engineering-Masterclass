@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Demo - Webhook Example</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            max-width: 500px;
+            width: 100%;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .product-info {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        .product-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .product-desc {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        .price {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .price-currency {
+            font-size: 18px;
+            color: #999;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .pay-button {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+        .pay-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        .pay-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status-card {
+            margin-top: 20px;
+            padding: 16px;
+            border-radius: 8px;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .status-card.processing {
+            display: block;
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            color: #856404;
+        }
+        .status-card.success {
+            display: block;
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+        .status-card.error {
+            display: block;
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+        .status-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-message {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top-color: #856404;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .payment-details {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 12px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .payment-details div {
+            margin: 4px 0;
+        }
+        .flow-diagram {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+            line-height: 1.8;
+        }
+        .flow-diagram .step {
+            margin: 8px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+        .flow-diagram .step:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+        .secure-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+            color: #666;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>💳 Secure Payment</h1>
+            <p class="subtitle">Webhook Payment Flow Demo</p>
+            
+            <div class="product-info">
+                <div class="product-title">Premium Subscription</div>
+                <div class="product-desc">Access to all premium features for 1 year</div>
+                <div class="price">$99.99 <span class="price-currency">USD</span></div>
+            </div>
+
+            <form id="paymentForm">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        placeholder="you@example.com" 
+                        required
+                        value="customer@example.com"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>Card Number</label>
+                    <input 
+                        type="text" 
+                        id="cardNumber" 
+                        placeholder="4242 4242 4242 4242" 
+                        maxlength="19"
+                        value="4242 4242 4242 4242"
+                    >
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Expiry</label>
+                        <input 
+                            type="text" 
+                            id="expiry" 
+                            placeholder="MM/YY"
+                            maxlength="5"
+                            value="12/26"
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label>CVV</label>
+                        <input 
+                            type="text" 
+                            id="cvv" 
+                            placeholder="123"
+                            maxlength="3"
+                            value="123"
+                        >
+                    </div>
+                </div>
+
+                <button type="submit" class="pay-button" id="payButton">
+                    Pay $99.99
+                </button>
+            </form>
+
+            <div id="statusCard" class="status-card">
+                <div class="status-title"></div>
+                <div class="status-message"></div>
+            </div>
+
+            <div class="flow-diagram">
+                <strong>How it works:</strong>
+                <div class="step">Click "Pay" → Request sent to your server</div>
+                <div class="step">Your server → Calls Kashier payment API</div>
+                <div class="step">Kashier processes payment (3 seconds)</div>
+                <div class="step">Kashier → Sends webhook to your server</div>
+                <div class="step">Your server → Updates payment status</div>
+                <div class="step">You see the final result!</div>
+            </div>
+
+            <div class="secure-badge">
+                🔒 Secured with webhook authentication
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SERVER_URL = 'http://localhost:4000';
+        let currentPaymentId = null;
+        let statusCheckInterval = null;
+
+        // Format card number
+        document.getElementById('cardNumber').addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\s/g, '');
+            let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
+            e.target.value = formattedValue;
+        });
+
+        // Format expiry
+        document.getElementById('expiry').addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+                value = value.slice(0, 2) + '/' + value.slice(2, 4);
+            }
+            e.target.value = value;
+        });
+
+        // Handle form submission
+        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const button = document.getElementById('payButton');
+            const statusCard = document.getElementById('statusCard');
+
+            // Disable button
+            button.disabled = true;
+            button.textContent = 'Processing...';
+
+            // Show processing status
+            showStatus('processing', 'Processing Payment', 'Sending payment request to server...');
+
+            try {
+                // Step 1: Create payment
+                const response = await fetch(`${SERVER_URL}/create-payment`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        amount: 99.99,
+                        currency: 'USD',
+                        customerEmail: email
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'Payment failed');
+                }
+
+                currentPaymentId = result.paymentId;
+
+                // Update status
+                showStatus('processing', 
+                    'Payment Processing', 
+                    `Payment ID: ${result.paymentId}<br>` +
+                    'Your server is calling Kashier...<br>' +
+                    'Kashier is processing the payment...<br>' +
+                    '<span class="spinner"></span> Waiting for webhook callback...'
+                );
+
+                // Step 2: Poll for payment status
+                startStatusPolling();
+
+            } catch (error) {
+                showStatus('error', 'Payment Failed', error.message);
+                button.disabled = false;
+                button.textContent = 'Pay $99.99';
+            }
+        });
+
+        function startStatusPolling() {
+            let pollCount = 0;
+            const maxPolls = 20; // Poll for max 20 seconds
+
+            statusCheckInterval = setInterval(async () => {
+                pollCount++;
+
+                try {
+                    const response = await fetch(`${SERVER_URL}/payment/${currentPaymentId}`);
+                    const payment = await response.json();
+
+                    if (payment.status === 'success') {
+                        clearInterval(statusCheckInterval);
+                        showStatus('success', 
+                            '✅ Payment Successful!', 
+                            `Transaction ID: ${payment.transactionId}<br>` +
+                            `Amount: $${payment.amount} ${payment.currency}<br>` +
+                            `Kashier Reference: ${payment.kashierReference}<br>` +
+                            `<br><small>Webhook was received and processed successfully!</small>`
+                        );
+                        resetButton();
+                    } else if (payment.status === 'failed') {
+                        clearInterval(statusCheckInterval);
+                        showStatus('error', 
+                            '❌ Payment Failed', 
+                            `Reason: ${payment.failureReason}<br>` +
+                            `Payment ID: ${payment.id}<br>` +
+                            `<br><small>Webhook was received but payment was declined.</small>`
+                        );
+                        resetButton();
+                    }
+
+                    // Timeout after max polls
+                    if (pollCount >= maxPolls && payment.status === 'pending') {
+                        clearInterval(statusCheckInterval);
+                        showStatus('error', 
+                            'Timeout', 
+                            'Payment status check timed out. Please check server logs.'
+                        );
+                        resetButton();
+                    }
+
+                } catch (error) {
+                    console.error('Error checking payment status:', error);
+                }
+            }, 1000); // Check every second
+        }
+
+        function showStatus(type, title, message) {
+            const statusCard = document.getElementById('statusCard');
+            statusCard.className = `status-card ${type}`;
+            statusCard.querySelector('.status-title').innerHTML = title;
+            statusCard.querySelector('.status-message').innerHTML = message;
+        }
+
+        function resetButton() {
+            setTimeout(() => {
+                const button = document.getElementById('payButton');
+                button.disabled = false;
+                button.textContent = 'Pay $99.99';
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

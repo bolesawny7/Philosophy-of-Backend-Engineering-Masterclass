@@ -1,0 +1,41 @@
+{
+  "name": "chat-application",
+  "version": "1.0.0",
+  "description": "A simple chat application demonstrating multiple communication patterns: GraphQL, Webhooks, Push Notifications, and SSE",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "watch": "tsc -w"
+  },
+  "keywords": [
+    "chat",
+    "graphql",
+    "webhooks",
+    "sse",
+    "push-notifications",
+    "typescript",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "apollo-server-express": "^3.13.0",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "graphql": "^16.8.1",
+    "uuid": "^9.0.0",
+    "web-push": "^3.6.6"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "@types/uuid": "^9.0.7",
+    "@types/web-push": "^3.6.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.2"
+  }
+}
